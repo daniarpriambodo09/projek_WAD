@@ -1,151 +1,782 @@
+// src/app/(your-path)/overview.tsx
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import dynamic from "next/dynamic"
 import {
-  LineChart,
-  Line,
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts"
-import dynamic from "next/dynamic"
+import { useChatbotContext } from "@/context/ChatbotContext"
 
-// ✅ Import MapComponent dari lokasi yang benar
+interface ClusterTipologiData {
+  IDDESA: string
+  NAMA_KAB: string
+  NAMA_KEC: string
+  NAMA_DESA: string
+  Latitude: number
+  Longitude: number
+  skor_akses_dasar: number
+  skor_konektivitas: number
+  skor_pengelolaan_lingkungan: number
+  skor_kesejahteraan: number
+  skor_kelembagaan_ekonomi: number
+  skor_produktivitas_ekonomi: number
+  skor_akses_kesehatan: number
+  skor_kualitas_kesehatan: number
+  skor_program_kesehatan: number
+  skor_pendidikan_lanjut: number
+  skor_literasi_masyarakat: number
+  skor_kualitas_lingkungan: number
+  skor_ketahanan_bencana: number
+  skor_digital_readiness: number
+  skor_status_wilayah: number
+  skor_karakteristik_khusus: number
+  sektor_pertanian: number
+  sektor_industri: number
+  sektor_jasa: number
+  status_perkotaan: number
+  ada_pades: number
+  ada_bumdes: number
+  ada_sid: number
+  kelengkapan_pendidikan: number
+  ada_vokasi: number
+  ada_mitigasi_bencana: number
+  kelengkapan_kesehatan: number
+  kelengkapan_ekonomi: number
+  cluster: number
+  total_penduduk: number
+  total_kk: number
+  cluster_label: string
+  cluster_label_detail: string
+  final_label: string
+}
+
 const MapComponent = dynamic(() => import("./MapComponent"), {
   ssr: false,
   loading: () => <div className="h-96 bg-white/80 backdrop-blur-sm rounded-lg animate-pulse" />,
 })
 
-export default function Overview() {
-  const [koperasiData, setKoperasiData] = useState<any[]>([]) // Data koperasi dari API
-  const [loading, setLoading] = useState(true) // Loading state
+const COLORS = [
+  '#324D3E', // Akses Dasar / Desa Mandiri
+  '#5A7A60', // Kesejahteraan / Desa Berkembang
+  '#728A6E', // Komponen Lain / Desa Transisi
+  '#8EA48B', // Sektor Dominan / Desa Potensial
+  '#B3C8A1', // Infrastruktur / Desa Tertinggal
+  '#9AB59F'  // Alternatif / Desa Spesifik
+];
+const ITEMS_PER_PAGE = 10
+
+export default function OverviewPage() {
+  const [data, setData] = useState<ClusterTipologiData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Filter State
+  const [selectedKab, setSelectedKab] = useState<string>("")
+  const [selectedKec, setSelectedKec] = useState<string>("")
+  const [selectedDesa, setSelectedDesa] = useState<string>("")
+  const [kecamatanOptions, setKecamatanOptions] = useState<string[]>([])
+  const [desaOptions, setDesaOptions] = useState<string[]>([])
+
+  const { setPageContext } = useChatbotContext()
+
+  const safeToFixed = (value: number | null, decimals = 1): string => {
+    if (value === null || value === undefined || isNaN(value)) return "N/A"
+    return Number(value).toFixed(decimals)
+  }
+
+  // === VALIDASI KOORDINAT ===
+  const isValidCoord = (lat: number, lng: number) => {
+    return (
+      lat !== 0 &&
+      lng !== 0 &&
+      !isNaN(lat) &&
+      !isNaN(lng) &&
+      lat >= -11 &&
+      lat <= -6 &&
+      lng >= 110 &&
+      lng <= 115
+    )
+  }
+
+  // === EFFECTS UNTUK FILTER ===
+  useEffect(() => {
+    if (!selectedKab) {
+      setKecamatanOptions([])
+      setDesaOptions([])
+      setSelectedKec("")
+      setSelectedDesa("")
+      return
+    }
+    const kecList = [...new Set(data.filter(d => d.NAMA_KAB === selectedKab).map(d => d.NAMA_KEC))]
+    setKecamatanOptions(kecList)
+    setSelectedKec("")
+    setSelectedDesa("")
+  }, [selectedKab, data])
 
   useEffect(() => {
-    const loadData = async () => {
+    if (!selectedKec || !selectedKab) {
+      setDesaOptions([])
+      setSelectedDesa("")
+      return
+    }
+    const desaList = [...new Set(data.filter(d => d.NAMA_KEC === selectedKec && d.NAMA_KAB === selectedKab).map(d => d.NAMA_DESA))]
+    setDesaOptions(desaList)
+    setSelectedDesa("")
+  }, [selectedKec, selectedKab, data])
+
+  // === FETCH DATA DARI API ===
+  useEffect(() => {
+    const fetchData = async () => {
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/tipologi-desa")
-        if (!response.ok) throw new Error("Gagal mengambil data")
-        const data = await response.json()
-
-        // Filter desa yang punya jml_koperasi > 0
-        const villagesWithKoperasi = data.filter((item: any) => item.jml_koperasi > 0)
-
-        // Urutkan berdasarkan jml_koperasi (descending)
-        const sorted = villagesWithKoperasi
-          .sort((a: any, b: any) => b.jml_koperasi - a.jml_koperasi)
-          .slice(0, 5) // Ambil 5 teratas
-
-        // Siapkan data untuk Recharts
-        const chartData = sorted.map((item: any) => ({
-          name: `${item.NAMA_DESA}`, // label desa
-          jml_koperasi: item.jml_koperasi,
-        }))
-
-        setKoperasiData(chartData)
+        const response = await fetch("http://localhost:8000/api/data_cluster/cluster_tipologi")
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+        const result: ClusterTipologiData[] = await response.json()
+        setData(result)
       } catch (error) {
-        console.error("Error loading API data:", error)
+        console.error("Error fetching tipologi", error)
+        setData([])
       } finally {
         setLoading(false)
       }
     }
-
-    loadData()
+    fetchData()
   }, [])
 
-  // Contoh data statis untuk grafik trend (opsional)
-  const trendData = [
-    { name: "Jan", value: 400 },
-    { name: "Feb", value: 300 },
-    { name: "Mar", value: 200 },
-    { name: "Apr", value: 278 },
-    { name: "May", value: 190 },
-    { name: "Jun", value: 229 },
-  ]
+  // === DATA DINAMIS ===
+  const activeData = useMemo(() => {
+    if (!data.length) return []
+    let filtered = data
+    if (selectedKab) filtered = filtered.filter(item => item.NAMA_KAB === selectedKab)
+    if (selectedKec) filtered = filtered.filter(item => item.NAMA_KEC === selectedKec)
+    if (selectedDesa) filtered = filtered.filter(item => item.NAMA_DESA === selectedDesa)
+    return filtered
+  }, [data, selectedKab, selectedKec, selectedDesa])
+
+  // === TABEL & PAGINASI ===
+  const tableData = useMemo(() => {
+    if (!data.length) return []
+    let result = data
+    if (selectedKab) result = result.filter(item => item.NAMA_KAB === selectedKab)
+    if (selectedKec) result = result.filter(item => item.NAMA_KEC === selectedKec)
+    if (searchTerm) {
+      const s = searchTerm.toLowerCase()
+      result = result.filter(
+        item =>
+          item.NAMA_DESA?.toLowerCase().includes(s) ||
+          item.NAMA_KEC?.toLowerCase().includes(s) ||
+          item.NAMA_KAB?.toLowerCase().includes(s) ||
+          item.final_label?.toLowerCase().includes(s)
+      )
+    }
+    return result
+  }, [data, selectedKab, selectedKec, searchTerm])
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = startIndex + ITEMS_PER_PAGE
+  const paginatedData = useMemo(() => tableData.slice(startIndex, endIndex), [tableData, startIndex, endIndex])
+  const tableTotalPages = Math.ceil(tableData.length / ITEMS_PER_PAGE)
+
+  // === MAP MARKERS (SESUAI LOGIKA digital.tsx) ===
+  const mapMarkers = useMemo(() => {
+    if (!data.length) return []
+
+    if (!selectedKab) {
+      // Tampilkan kabupaten
+      const kabupatenMap = new Map()
+      data.forEach(item => {
+        if (isValidCoord(item.Latitude, item.Longitude) && !kabupatenMap.has(item.NAMA_KAB)) {
+          kabupatenMap.set(item.NAMA_KAB, {
+            lat: item.Latitude,
+            lng: item.Longitude,
+            name: item.NAMA_KAB,
+            cluster: item.cluster,
+            label: item.final_label,
+          })
+        }
+      })
+      return Array.from(kabupatenMap.values()).map(m => ({
+        name: m.name,
+        position: [m.lat, m.lng] as [number, number],
+        kabupaten: m.name,
+        kecamatan: "",
+        cluster: m.cluster,
+        label: m.label,
+      }))
+    }
+
+    if (selectedKab && !selectedKec) {
+      // Tampilkan kecamatan
+      const kecamatanMap = new Map()
+      data
+        .filter(d => d.NAMA_KAB === selectedKab)
+        .forEach(item => {
+          if (isValidCoord(item.Latitude, item.Longitude)) {
+            const key = `${item.NAMA_KAB}-${item.NAMA_KEC}`
+            if (!kecamatanMap.has(key)) {
+              kecamatanMap.set(key, {
+                lat: item.Latitude,
+                lng: item.Longitude,
+                name: item.NAMA_KEC,
+                kabupaten: item.NAMA_KAB,
+                cluster: item.cluster,
+                label: item.final_label,
+              })
+            }
+          }
+        })
+      return Array.from(kecamatanMap.values()).map(m => ({
+        name: m.name,
+        position: [m.lat, m.lng] as [number, number],
+        kabupaten: m.kabupaten,
+        kecamatan: m.name,
+        cluster: m.cluster,
+        label: m.label,
+      }))
+    }
+
+    // Jika kabupaten + kecamatan dipilih → tampilkan SEMUA desa dalam kecamatan itu
+    if (selectedKab && selectedKec) {
+      return data
+        .filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec && isValidCoord(d.Latitude, d.Longitude))
+        .map(m => ({
+          name: m.NAMA_DESA,
+          position: [m.Latitude, m.Longitude] as [number, number],
+          kabupaten: m.NAMA_KAB,
+          kecamatan: m.NAMA_KEC,
+          skorProduktifitas: m.skor_produktivitas_ekonomi,
+          skorKesejahteraan: m.skor_kesejahteraan,
+          cluster: m.cluster,
+          label: m.final_label,
+        }))
+    }
+
+    return []
+  }, [data, selectedKab, selectedKec]) // ⚠️ jangan masukkan selectedDesa
+
+  // === CHART DATA: AGREGASI BERDASARKAN LEVEL FILTER ===
+  const chartData = useMemo(() => {
+    if (!data.length) return { aksesDasar: [], kesejahteraan: [], label: "Data" }
+
+    if (selectedKab && selectedKec) {
+      const desaData = data.filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec)
+      return {
+        aksesDasar: desaData.map(d => ({ name: d.NAMA_DESA, "Akses Dasar": Number(d.skor_akses_dasar?.toFixed(1) || 0) })),
+        kesejahteraan: desaData.map(d => ({ name: d.NAMA_DESA, "Kesejahteraan": Number(d.skor_kesejahteraan?.toFixed(1) || 0) })),
+        label: "Desa"
+      }
+    } else if (selectedKab) {
+      const kecAkses = data.filter(d => d.NAMA_KAB === selectedKab).reduce((acc, item) => {
+        const key = item.NAMA_KEC
+        if (!acc[key]) acc[key] = { total: 0, count: 0 }
+        acc[key].total += item.skor_akses_dasar || 0
+        acc[key].count += 1
+        return acc
+      }, {} as Record<string, { total: number; count: number }>)
+      const kecKesej = data.filter(d => d.NAMA_KAB === selectedKab).reduce((acc, item) => {
+        const key = item.NAMA_KEC
+        if (!acc[key]) acc[key] = { total: 0, count: 0 }
+        acc[key].total += item.skor_kesejahteraan || 0
+        acc[key].count += 1
+        return acc
+      }, {} as Record<string, { total: number; count: number }>)
+
+      return {
+        aksesDasar: Object.entries(kecAkses).map(([name, val]) => ({ name, "Akses Dasar": Number((val.total / val.count).toFixed(1)) })),
+        kesejahteraan: Object.entries(kecKesej).map(([name, val]) => ({ name, "Kesejahteraan": Number((val.total / val.count).toFixed(1)) })),
+        label: "Kecamatan"
+      }
+    } else {
+      const kabAkses = data.reduce((acc, item) => {
+        const key = item.NAMA_KAB
+        if (!acc[key]) acc[key] = { total: 0, count: 0 }
+        acc[key].total += item.skor_akses_dasar || 0
+        acc[key].count += 1
+        return acc
+      }, {} as Record<string, { total: number; count: number }>)
+      const kabKesej = data.reduce((acc, item) => {
+        const key = item.NAMA_KAB
+        if (!acc[key]) acc[key] = { total: 0, count: 0 }
+        acc[key].total += item.skor_kesejahteraan || 0
+        acc[key].count += 1
+        return acc
+      }, {} as Record<string, { total: number; count: number }>)
+
+      return {
+        aksesDasar: Object.entries(kabAkses).map(([name, val]) => ({ name, "Akses Dasar": Number((val.total / val.count).toFixed(1)) })),
+        kesejahteraan: Object.entries(kabKesej).map(([name, val]) => ({ name, "Kesejahteraan": Number((val.total / val.count).toFixed(1)) })),
+        label: "Kabupaten"
+      }
+    }
+  }, [data, selectedKab, selectedKec])
+
+  // === CHART TAMBAHAN ===
+  const komponenChartData = useMemo(() => {
+    if (!activeData.length) return []
+    const avg = (key: keyof ClusterTipologiData) => {
+      const valid = activeData.filter(d => d[key] != null && !isNaN(d[key] as number))
+      if (valid.length === 0) return 0
+      return Number((valid.reduce((sum, d) => sum + (d[key] as number), 0) / valid.length).toFixed(1))
+    }
+    return [
+      { name: "Akses Dasar", avg: avg("skor_akses_dasar") },
+      { name: "Konektivitas", avg: avg("skor_konektivitas") },
+      { name: "Lingkungan", avg: avg("skor_kualitas_lingkungan") },
+      { name: "Kesejahteraan", avg: avg("skor_kesejahteraan") },
+      { name: "Kesehatan", avg: avg("skor_akses_kesehatan") },
+      { name: "Digital", avg: avg("skor_digital_readiness") },
+    ]
+  }, [activeData])
+
+  const sektorChartData = useMemo(() => {
+    if (!activeData.length) return []
+    return [
+      { name: "Pertanian", count: activeData.filter(d => d.sektor_pertanian === 1).length },
+      { name: "Industri", count: activeData.filter(d => d.sektor_industri === 1).length },
+      { name: "Jasa", count: activeData.filter(d => d.sektor_jasa === 1).length },
+    ]
+  }, [activeData])
+
+  const infraProgramChartData = useMemo(() => {
+    if (!activeData.length) return []
+    return [
+      { name: "PADES", value: activeData.filter(d => d.ada_pades === 1).length },
+      { name: "BUMDES", value: activeData.filter(d => d.ada_bumdes === 1).length },
+      { name: "SID", value: activeData.filter(d => d.ada_sid === 1).length },
+      { name: "Vokasi", value: activeData.filter(d => d.ada_vokasi === 1).length },
+      { name: "Mitigasi", value: activeData.filter(d => d.ada_mitigasi_bencana === 1).length },
+      { name: "Kel. Pendidikan", value: activeData.filter(d => d.kelengkapan_pendidikan > 0).length },
+    ]
+  }, [activeData])
+
+  const clusterDistribution = useMemo(() => {
+    if (!activeData.length) return []
+    return activeData.reduce(
+      (acc, item) => {
+        const existing = acc.find(x => x.name === item.final_label)
+        if (existing) existing.value += 1
+        else acc.push({ name: item.final_label, value: 1 })
+        return acc
+      },
+      [] as Array<{ name: string; value: number }>
+    )
+  }, [activeData])
+
+  const stats = useMemo(() => {
+    if (!activeData.length) {
+      return {
+        totalDesa: 0,
+        avgAksesDasar: "0.0",
+        avgKesejahteraan: "0.0",
+        avgDigital: "0.0",
+      }
+    }
+    const total = activeData.length
+    const avgAkses = activeData.reduce((sum, d) => sum + (d.skor_akses_dasar || 0), 0) / total
+    const avgKesej = activeData.reduce((sum, d) => sum + (d.skor_kesejahteraan || 0), 0) / total
+    const avgDigital = activeData.reduce((sum, d) => sum + (d.skor_digital_readiness || 0), 0) / total
+    return {
+      totalDesa: total,
+      avgAksesDasar: safeToFixed(avgAkses),
+      avgKesejahteraan: safeToFixed(avgKesej),
+      avgDigital: safeToFixed(avgDigital),
+    }
+  }, [activeData])
+
+  // === VISIBLE DATA SUMMARY UNTUK CHATBOT ===
+  const visibleDataSummary = useMemo(() => {
+    if (!activeData.length) return null
+
+    const totalDesa = activeData.length
+    const avg = (key: keyof ClusterTipologiData) =>
+      (activeData.reduce((sum, d) => sum + (d[key] as number || 0), 0) / totalDesa).toFixed(1)
+
+    let wilayah = "Provinsi Jawa Timur"
+    if (selectedKab && !selectedKec) wilayah = `Kabupaten ${selectedKab}`
+    else if (selectedKab && selectedKec) wilayah = `Kecamatan ${selectedKec}, Kabupaten ${selectedKab}`
+
+    return {
+      wilayah,
+      jumlah_desa: totalDesa,
+      rata_rata_skor: {
+        akses_dasar: parseFloat(avg("skor_akses_dasar")),
+        kesejahteraan: parseFloat(avg("skor_kesejahteraan")),
+        digital: parseFloat(avg("skor_digital_readiness")),
+        konektivitas: parseFloat(avg("skor_konektivitas")),
+        lingkungan: parseFloat(avg("skor_kualitas_lingkungan")),
+      },
+      distribusi_kluster: activeData.reduce((acc, d) => {
+        acc[d.final_label] = (acc[d.final_label] || 0) + 1
+        return acc
+      }, {} as Record<string, number>),
+    }
+  }, [activeData, selectedKab, selectedKec])
+
+  useEffect(() => {
+    if (visibleDataSummary) {
+      setPageContext({
+        pageId: "overview",
+        pageTitle: "Dashboard Overview Desa",
+        filters: {
+          kabupaten: selectedKab || undefined,
+          kecamatan: selectedKec || undefined,
+          desa: selectedDesa || undefined,
+        },
+        visibleDataSummary,
+      })
+    }
+  }, [visibleDataSummary, selectedKab, selectedKec, selectedDesa, setPageContext])
+
+  if (loading) {
+    return <div className="p-8 text-black">Memuat data dari server...</div>
+  }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-black mb-2">Dashboard Overview</h1>
-        <p className="text-gray-600">Analitik data siDesa Jawa Timur berbasis AI</p>
-      </div>
+    <div className="space-y-6 p-6">
+      {/* STICKY HEADER */}
+      <div className="sticky top-0 z-50 backdrop-blur-sm border-b border-[#c9ece7] px-6 py-4 -mx-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-black mb-2">Dashboard Overview Desa</h1>
+            <p className="text-gray-600">Tipologi desa berdasarkan klaster multidimensional</p>
+          </div>
+          <div className="flex gap-3 flex-wrap justify-end">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-gray-600">Filter Kabupaten</label>
+              <select
+                value={selectedKab}
+                onChange={(e) => setSelectedKab(e.target.value)}
+                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8]"
+              >
+                <option value="">Semua Kabupaten</option>
+                {[...new Set(data.map(d => d.NAMA_KAB))].map(kab => (
+                  <option key={kab} value={kab}>{kab}</option>
+                ))}
+              </select>
+            </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          { label: "Total Desa", value: "2,456", icon: "🏘️" },
-          { label: "Data Points", value: "15,234", icon: "📊" },
-          { label: "Accuracy", value: "94.2%", icon: "✓" },
-          // { label: "Last Update", value: "2 jam lalu", icon: "🕐" },
-        ].map((stat, idx) => (
-          <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm">{stat.label}</p>
-                <p className="text-2xl font-bold text-[#1a3a3a] mt-2">{stat.value}</p>
-              </div>
-              <span className="text-4xl">{stat.icon}</span>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-gray-600">Filter Kecamatan</label>
+              <select
+                value={selectedKec}
+                onChange={(e) => setSelectedKec(e.target.value)}
+                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8]"
+                disabled={!selectedKab}
+              >
+                <option value="">Semua Kecamatan</option>
+                {kecamatanOptions.map(kec => (
+                  <option key={kec} value={kec}>{kec}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-gray-600">Filter Desa</label>
+              <select
+                value={selectedDesa}
+                onChange={(e) => setSelectedDesa(e.target.value)}
+                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8]"
+                disabled={!selectedKec}
+              >
+                <option value="">Semua Desa</option>
+                {desaOptions.map(desa => (
+                  <option key={desa} value={desa}>{desa}</option>
+                ))}
+              </select>
             </div>
           </div>
-        ))}
+        </div>
       </div>
 
-      {/* 🗺️ Leaflet Map */}
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
+          <p className="text-black text-sm font-medium">Total Desa</p>
+          <p className="text-3xl font-bold text-black mt-2">{stats.totalDesa}</p>
+        </div>
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
+          <p className="text-black text-sm font-medium">Rata-rata Akses Dasar</p>
+          <p className="text-3xl font-bold text-black mt-2">{stats.avgAksesDasar}</p>
+        </div>
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
+          <p className="text-black text-sm font-medium">Rata-rata Kesejahteraan</p>
+          <p className="text-3xl font-bold text-black mt-2">{stats.avgKesejahteraan}</p>
+        </div>
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
+          <p className="text-black text-sm font-medium">Rata-rata Digital Ready</p>
+          <p className="text-3xl font-bold text-black mt-2">{stats.avgDigital}</p>
+        </div>
+      </div>
+
+      {/* Map */}
       <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-lg overflow-hidden">
-        <h2 className="text-lg font-semibold text-black p-6 pb-2">Sebaran Desa di Jawa Timur</h2>
-        <div className="h-72 w-full">
-          <MapComponent key={Date.now()} />
+        <h2 className="text-lg font-semibold text-black p-3 pb-2">
+          Sebaran Desa di Jawa Timur ({mapMarkers.length} desa)
+        </h2>
+        <div className="h-96 w-full">
+          <MapComponent
+            markers={mapMarkers}
+            renderTooltip={(marker) => (
+              <>
+                <div className="font-semibold">{marker.name}</div>
+                {marker.kecamatan && <div>Kec. {marker.kecamatan}</div>}
+                {marker.kabupaten && <div>Kab. {marker.kabupaten}</div>}
+                {marker.label && <div>{marker.label}</div>}
+              </>
+            )}
+          />
         </div>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Bar Chart: 5 Desa dengan Jumlah Koperasi Terbanyak */}
-        <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">Top 5 Desa Berdasarkan Jumlah Koperasi</h2>
-          {loading ? (
-            <div className="h-64 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={koperasiData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis
-                  dataKey="name"
-                  stroke="#9CA3AF"
-                  angle={-45}
-                  textAnchor="end"
-                  interval={0}
-                  tick={{ fontSize: 12, fill: "#9CA3AF" }}
-                  height={80}
-                />
-                <YAxis stroke="#9CA3AF" />
-                <Tooltip contentStyle={{ backgroundColor: "#1F2937", border: "1px solid #374151" }} />
-                <Legend />
-                <Bar dataKey="jml_koperasi" fill="#10B981" name="Jumlah Koperasi" />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+        {/* Chart 1 */}
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-black mb-4">
+            Rata-rata Skor Akses Dasar per {chartData.label}
+          </h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData.aksesDasar}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+              <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={80} fontSize={12} />
+              <YAxis stroke="#666" />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="Akses Dasar" fill="#324D3E" />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* Line Chart: Trend Data (contoh statis) */}
-        <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">Trend Data (Contoh)</h2>
+        {/* Chart 2 */}
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-black mb-4">
+            Rata-rata Skor Kesejahteraan per {chartData.label}
+          </h2>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="name" stroke="#9CA3AF" />
-              <YAxis stroke="#9CA3AF" />
-              <Tooltip contentStyle={{ backgroundColor: "#ffffffff", border: "1px solid #374151" }} />
+            <LineChart data={chartData.kesejahteraan}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+              <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={80} fontSize={12} />
+              <YAxis stroke="#666" />
+              <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="value" stroke="#3B82F6" strokeWidth={2} />
+              <Line type="monotone" dataKey="Kesejahteraan" stroke="#5A7A60" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
+        </div>
+
+        {/* Chart 3 */}
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-black mb-4">
+            Skor Komponen per {chartData.label}
+          </h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={komponenChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+              <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={80} fontSize={12} />
+              <YAxis stroke="#666" />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="avg" fill="#728A6E" name="Rata-rata" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Chart 4 */}
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-black mb-4">
+            Jumlah Sektor Dominan pada Wilayah per {chartData.label}
+          </h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={sektorChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+              <XAxis dataKey="name" stroke="#666" />
+              <YAxis stroke="#666" />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="count" fill="#8EA48B" name="Jumlah Desa" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Chart 5 */}
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-black mb-4">
+            Ketersediaan Infrastruktur & Program per {chartData.label}
+          </h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={infraProgramChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+              <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={80} fontSize={12} />
+              <YAxis stroke="#666" />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="value" fill="#B3C8A1" name="Jumlah Desa" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Chart 6 */}
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-black mb-4">
+            Distribusi Kluster Tipologi Desa
+          </h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={clusterDistribution}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {clusterDistribution.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+          <h2 className="text-lg font-semibold text-black">
+            Detail Tipologi Desa ({tableData.length.toLocaleString()} hasil)
+          </h2>
+          <input
+            type="text"
+            placeholder="Cari nama desa, kecamatan, kabupaten, atau label ..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value)
+              setCurrentPage(1)
+            }}
+            className="px-4 py-2 border border-[#c9ece7] rounded-lg bg-white text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#5fb8a8]"
+          />
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-[#c9ece7] bg-gray-50">
+                <th className="px-4 py-3 text-left text-black font-semibold text-sm">No</th>
+                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Kab/Kota</th>
+                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Kecamatan</th>
+                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Desa</th>
+                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Akses Dasar</th>
+                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Konektivitas</th>
+                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Kesejahteraan</th>
+                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Lingkungan</th>
+                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Digital Ready</th>
+                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Sektor</th>
+                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Label</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedData.length > 0 ? (
+                paginatedData.map((item, index) => {
+                  const sektor =
+                    item.sektor_pertanian === 1 ? "Pertanian" : item.sektor_industri === 1 ? "Industri" : "Jasa"
+                  return (
+                    <tr key={item.IDDESA + index} className="border-b border-[#e0e0e0] hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-black text-sm">{startIndex + index + 1}</td>
+                      <td className="px-4 py-3 text-black text-sm">{item.NAMA_KAB}</td>
+                      <td className="px-4 py-3 text-black text-sm">{item.NAMA_KEC}</td>
+                      <td className="px-4 py-3 text-black font-medium text-sm">{item.NAMA_DESA}</td>
+                      <td className="px-4 py-3 text-black text-sm">{safeToFixed(item.skor_akses_dasar)}</td>
+                      <td className="px-4 py-3 text-black text-sm">{safeToFixed(item.skor_konektivitas)}</td>
+                      <td className="px-4 py-3 text-black text-sm">{safeToFixed(item.skor_kesejahteraan)}</td>
+                      <td className="px-4 py-3 text-black text-sm">{safeToFixed(item.skor_kualitas_lingkungan)}</td>
+                      <td className="px-4 py-3 text-black text-sm">{safeToFixed(item.skor_digital_readiness)}</td>
+                      <td className="px-4 py-3 text-black text-sm">{sektor}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {item.final_label}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })
+              ) : (
+                <tr>
+                  <td colSpan={11} className="px-4 py-6 text-center text-gray-500">
+                    Tidak ada data ditemukan
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-6 pt-6 border-t border-[#c9ece7]">
+          <div className="text-black text-sm">
+            Menampilkan {paginatedData.length > 0 ? startIndex + 1 : 0} -{" "}
+            {Math.min(endIndex, tableData.length)} dari {tableData.length.toLocaleString()} data
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 border border-[#c9ece7] rounded-lg text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              Sebelumnya
+            </button>
+
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, tableTotalPages) }, (_, i) => {
+                let pageNum
+                if (tableTotalPages <= 5) {
+                  pageNum = i + 1
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1
+                } else if (currentPage >= tableTotalPages - 2) {
+                  pageNum = tableTotalPages - 4 + i
+                } else {
+                  pageNum = currentPage - 2 + i
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-3 py-2 rounded-lg text-sm ${
+                      currentPage === pageNum
+                        ? "bg-green-600 text-white"
+                        : "border border-gray-300 text-black hover:bg-gray-100"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              })}
+            </div>
+
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, tableTotalPages))}
+              disabled={currentPage === tableTotalPages}
+              className="px-4 py-2 border border-[#c9ece7] rounded-lg text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              Selanjutnya
+            </button>
+          </div>
         </div>
       </div>
     </div>

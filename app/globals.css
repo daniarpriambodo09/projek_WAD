@@ -281,7 +281,7 @@ body {
 .bubble {
   position: absolute;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, rgba(100, 200, 200, 0.4), rgba(70, 150, 150, 0.2));
+  background: radial-gradient(circle at 30% 30%, rgba(24, 90, 59, 0.628), rgba(70, 150, 150, 0.2));
   box-shadow: 0 8px 32px rgba(70, 150, 150, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.2);
   animation: floatBubble 25s infinite ease-in-out;
 }
@@ -397,7 +397,7 @@ body {
 }
 
 .dashboard-light {
-  background: linear-gradient(135deg, #dff4e9 0%, #c9ece7 40%, #bfe5ee 100%) !important;
+  background: linear-gradient(135deg, #fbfada 0%, #adbc9f 40%, #436850 100%) !important;
   color: #1a3a3a !important;
 }
 

@@ -14,8 +14,6 @@ export default function DataMentah() {
     { id: 6, desa: "Desa F", populasi: 2340, luas: 48.2, infrastruktur: "Baik" },
   ]
 
-  const [loadingFilters, setLoadingFilters] = useState(true)
-
   const filteredData = rawData.filter((row) => row.desa.toLowerCase().includes(searchTerm.toLowerCase()))
 
   return (

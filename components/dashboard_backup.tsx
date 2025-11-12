@@ -11,8 +11,8 @@ import Prediction from "./pages/prediction"
 import Digital from "./pages/digital"
 import DataMentah from "./pages/data-mentah"
 import Metodologi from "./pages/metodologi"
-import AboutUs from "./pages/about-us"
 import AnimatedBackground from "./pages/AnimatedBackground" // 👈 tambahkan ini
+import AboutUs from "./pages/about-us"
 
 interface DashboardProps {
   activePage: string
@@ -35,17 +35,20 @@ export default function Dashboard({ activePage }: DashboardProps) {
         return <Lingkungan />
       case "clustering":
         return <Clustering />
+      case "pca":
+        return <PCA />
+      case "prediction":
+        return <Prediction />
       case "digital":
         return <Digital />
       case "data-mentah":
         return <DataMentah />
       case "metodologi":
         return <Metodologi />
-      case"about-us":
+      case "aboutUs":
         return <AboutUs />
       default:
         return <Overview />
-
     }
   }
 

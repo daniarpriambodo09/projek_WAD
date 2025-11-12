@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { Label } from "recharts"
 
 interface SidebarProps {
   activePage: string
@@ -23,6 +24,7 @@ export default function Sidebar({ activePage, setActivePage, isOpen, setIsOpen }
         { label: "Kesehatan", id: "kesehatan" },
         { label: "Pendidikan", id: "pendidikan" },
         { label: "Lingkungan", id: "lingkungan" },
+        { label: "Digital", id:"digital"}
       ],
     },
     {
@@ -30,16 +32,6 @@ export default function Sidebar({ activePage, setActivePage, isOpen, setIsOpen }
       icon: "🤖",
       submenu: [
         { label: "Clustering", id: "clustering" },
-        { label: "PCA", id: "pca" },
-        { label: "Prediction", id: "prediction" },
-      ],
-    },
-    {
-      label: "DIGITAL",
-      icon: "💻",
-      submenu: [
-        { label: "Digital", id: "digital" },
-        { label: "Data Mentah", id: "data-mentah" },
       ],
     },
     {
@@ -47,13 +39,21 @@ export default function Sidebar({ activePage, setActivePage, isOpen, setIsOpen }
       icon: "📚",
       submenu: [{ label: "Metodologi", id: "metodologi" }],
     },
+    {
+      label: "INFORMATION",
+      icon: "💻",
+      submenu: [
+        { label: "ABOUT US", id: "about-us" },
+        { label: "Data Mentah", id: "data-mentah" },
+      ],
+    },
   ]
-
+  
   return (
     <aside
       className={`${
         isOpen ? "w-64" : "w-20"
-      } bg-gray-800 border-r border-gray-700 transition-all duration-300 flex flex-col overflow-y-auto z-20`}
+      } bg-[#016B61] border-r border-gray-700 transition-all duration-300 flex flex-col overflow-y-auto z-20`}
     >
       {/* Header dengan Logo */}
       <div className="p-4 border-b border-gray-700 flex items-center justify-between">
