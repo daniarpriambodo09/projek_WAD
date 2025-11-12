@@ -1,18 +1,14 @@
 // siDesa/app/api/gemini/reset/route.ts
 import { NextResponse } from 'next/server';
 
+let conversationHistory: any[] = [];
+
 export async function POST() {
   try {
-    const res = await fetch('http://localhost:3001/api/reset', {
-      method: 'POST',
-    });
-
-    if (!res.ok) {
-      return NextResponse.json({ error: 'Reset failed' }, { status: res.status });
-    }
-
-    return NextResponse.json({ message: 'Reset successful' });
+    conversationHistory = [];
+    return NextResponse.json({ message: "History reset successfully." });
   } catch (error) {
-    return NextResponse.json({ error: 'Reset error' }, { status: 500 });
+    console.error("Error resetting history:", error);
+    return NextResponse.json({ error: "Reset error" }, { status: 500 });
   }
 }

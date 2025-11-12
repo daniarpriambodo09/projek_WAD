@@ -51,15 +51,66 @@ interface EkonomiData {
   Longitude: number
 }
 
+// Fungsi bantu untuk wrap teks (tetap dipakai)
+const wrapText = (text: string, maxCharsPerLine = 18) => {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let currentLine = "";
+
+  words.forEach((word) => {
+    const candidate = currentLine ? `${currentLine} ${word}` : word;
+    if (candidate.length > maxCharsPerLine) {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = candidate;
+    }
+  });
+
+  if (currentLine) lines.push(currentLine);
+  return lines;
+};
+
+const renderCustomLabel = (props: any) => {
+  const { cx, cy, midAngle, outerRadius, percent, name } = props;
+  const RADIAN = Math.PI / 180;
+  const offset = 30;
+  const radius = outerRadius + offset;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  const lines = wrapText(String(name), 20);
+  const anchor = x > cx ? "start" : "end";
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="#12201A"
+        textAnchor={anchor}
+        dominantBaseline="central"
+        fontSize={12}
+      >
+        {lines.map((line: string, i: number) => (
+          <tspan key={i} x={x} dy={i === 0 ? 0 : "1.1em"}>
+            {line}
+          </tspan>
+        ))}
+        <tspan x={x} dy="1.1em">
+          {`${(percent * 100).toFixed(0)}%`}
+        </tspan>
+      </text>
+    );
+  };
+
 const MapComponent = dynamic(() => import("./MapComponent"), {
   ssr: false,
   loading: () => (
-    <div className="h-96 bg-white/80 backdrop-blur-sm rounded-lg animate-pulse" />
+    <div className="h-64 sm:h-80 bg-white/80 backdrop-blur-sm rounded-lg animate-pulse" />
   ),
 })
 
 const COLORS = ["#324D3E", "#728A6E", "#8EA48B", "#B3C8A1", "#C9D9C3"]
-const ITEMS_PER_PAGE = 10
+const ITEMS_PER_PAGE = 5 // Kurangi untuk mobile
 
 export default function EkonomiPage() {
   const [data, setData] = useState<EkonomiData[]>([])
@@ -303,7 +354,7 @@ export default function EkonomiPage() {
       setSelectedDesa("")
       return
     }
-    const kecList = [...new Set(data.filter(d => d.NAMA_KAB === selectedKab).map(d => d.NAMA_KEC))]
+    const kecList = [...new Set(data.filter(d => d.NAMA_KAB === selectedKab).map(d => d.NAMA_KEC))].sort()
     setKecamatanOptions(kecList)
     setSelectedKec("")
     setSelectedDesa("")
@@ -315,7 +366,7 @@ export default function EkonomiPage() {
       setSelectedDesa("")
       return
     }
-    const desaList = [...new Set(data.filter(d => d.NAMA_KEC === selectedKec && d.NAMA_KAB === selectedKab).map(d => d.NAMA_DESA))]
+    const desaList = [...new Set(data.filter(d => d.NAMA_KEC === selectedKec && d.NAMA_KAB === selectedKab).map(d => d.NAMA_DESA))].sort()
     setDesaOptions(desaList)
     setSelectedDesa("")
   }, [selectedKec, selectedKab, data])
@@ -329,7 +380,7 @@ export default function EkonomiPage() {
         .select('*');
 
       if (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching ', error);
         setData([]);
       } else {
         setData(data);
@@ -518,6 +569,20 @@ export default function EkonomiPage() {
     }
   }, [data, selectedKab, selectedKec, selectedDesa])
 
+  // === SEKTOR DOMINAN CHART ===
+  const sektorDominanDistribution = useMemo(() => {
+    if (!activeData.length) return []
+    // Hitung jumlah desa per grup_sektor
+    const distribution = activeData.reduce((acc, item) => {
+      const key = item.grup_sektor || "Tidak Diketahui"; // Jika null/undefined, gunakan label default
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    // Konversi ke format yang bisa digunakan oleh PieChart
+    return Object.entries(distribution).map(([name, value]) => ({ name, value }));
+  }, [activeData]);
+
   // === Kesejahteraan Chart ===
   const kesejahteraanChartData = useMemo(() => {
     if (!data.length) return { data: [], label: "Data" }
@@ -636,39 +701,39 @@ export default function EkonomiPage() {
   }, [activeData])
 
   if (loading) {
-    return <div className="p-8 text-black">Loading...</div>
+    return <div className="p-4 sm:p-6 text-black">Loading...</div>
   }
 
   return (
-    <div className="space-y-6 p-8">
+    <div className="space-y-2 p-2 sm:p-2">
       {/* STICKY HEADER */}
-      <div className="sticky top-0 z-50 backdrop-blur-sm border-b border-[#c9ece7] px-6 py-4 -mx-8">
-        <div className="flex items-start justify-between gap-4">
+      <div className="sticky top-0 z-50 backdrop-blur-sm border-b border-[#c9ece7] px-4 sm:px-6 py-4 -mx-4 sm:-mx-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-black mb-2">Analisis Ekonomi Desa</h1>
-            <p className="text-gray-600">Data kluster ekonomi dan usaha per desa</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-black mb-2">Dashboard Ekonomi Desa</h1>
+            <p className="text-sm sm:text-base text-gray-600">Data kluster ekonomi dan usaha per desa</p>
           </div>
-          <div className="flex gap-3 flex-wrap justify-end">
-            <div className="flex flex-col gap-1">
+          <div className="flex flex-col sm:flex-row gap-3 flex-wrap justify-end">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-xs font-bold text-gray-600">Filter Kabupaten</label>
               <select
                 value={selectedKab}
                 onChange={(e) => setSelectedKab(e.target.value)}
-                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8]"
+                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
               >
                 <option value="">Semua Kabupaten</option>
-                {[...new Set(data.map(d => d.NAMA_KAB))].map(kab => (
+                {[...new Set(data.map(d => d.NAMA_KAB))].sort().map(kab => (
                   <option key={kab} value={kab}>{kab}</option>
                 ))}
               </select>
             </div>
 
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-xs font-bold text-gray-600">Filter Kecamatan</label>
               <select
                 value={selectedKec}
                 onChange={(e) => setSelectedKec(e.target.value)}
-                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8]"
+                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
                 disabled={!selectedKab}
               >
                 <option value="">Semua Kecamatan</option>
@@ -678,12 +743,12 @@ export default function EkonomiPage() {
               </select>
             </div>
 
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-xs font-bold text-gray-600">Filter Desa</label>
               <select
                 value={selectedDesa}
                 onChange={(e) => setSelectedDesa(e.target.value)}
-                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8]"
+                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
                 disabled={!selectedKec}
               >
                 <option value="">Semua Desa</option>
@@ -697,29 +762,29 @@ export default function EkonomiPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <p className="text-black text-sm font-medium">Total Desa</p>
-          <p className="text-3xl font-bold text-black mt-2">{stats.totalDesa}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
+          <p className="text-black text-xs sm:text-sm font-medium">Total Desa</p>
+          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.totalDesa}</p>
         </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <p className="text-black text-sm font-medium">Rata-rata Skor Ekonomi</p>
-          <p className="text-3xl font-bold text-black mt-2">{stats.avgEkonomi}</p>
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
+          <p className="text-black text-xs sm:text-sm font-medium">Rata-rata Skor Ekonomi</p>
+          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgEkonomi}</p>
         </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <p className="text-black text-sm font-medium">Rata-rata Kesejahteraan</p>
-          <p className="text-3xl font-bold text-black mt-2">{stats.avgKesejahteraan}</p>
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
+          <p className="text-black text-xs sm:text-sm font-medium">Rata-rata Kesejahteraan</p>
+          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgKesejahteraan}</p>
         </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <p className="text-black text-sm font-medium">Rata-rata BUMDES</p>
-          <p className="text-3xl font-bold text-black mt-2">{stats.avgBUMDES}</p>
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
+          <p className="text-black text-xs sm:text-sm font-medium">Rata-rata BUMDES</p>
+          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgBUMDES}</p>
         </div>
       </div>
 
       {/* Map */}
       <div className="border border-[#c9ece7] rounded-lg bg-white/80 backdrop-blur-sm overflow-hidden">
-        <h2 className="p-3 font-semibold text-black">Sebaran Desa ({mapMarkers.length} desa)</h2>
-        <div className="h-96 w-full">
+        <h2 className="text-base sm:text-lg font-semibold text-black p-3 pb-2">Sebaran Desa ({mapMarkers.length} desa)</h2>
+        <div className="h-64 sm:h-80 w-full">
           <MapComponent
             markers={mapMarkers}
             renderTooltip={(marker) => (
@@ -738,109 +803,125 @@ export default function EkonomiPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Chart 1 */}
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">
-            Skor Ekonomi per {chartData.label}
-          </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData.data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={80} fontSize={12} />
-              <YAxis stroke="#666" />
-              <Tooltip />
-              <Bar dataKey="skor" fill="#324D3E" name="Skor Ekonomi" />
-            </BarChart>
-          </ResponsiveContainer>
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {/* Chart 1: Skor Ekonomi */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">
+              Skor Ekonomi per {chartData.label}
+            </h2>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <BarChart data={chartData.data}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={60} fontSize={10} />
+                <YAxis stroke="#666" />
+                <Tooltip />
+                <Bar dataKey="skor" fill="#324D3E" name="Skor Ekonomi" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Chart 2: Skor Kesejahteraan */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">
+              Skor Kesejahteraan per {kesejahteraanChartData.label}
+            </h2>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <BarChart data={kesejahteraanChartData.data}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={60} fontSize={10} />
+                <YAxis stroke="#666" />
+                <Tooltip />
+                <Bar dataKey="skor" fill="#728A6E" name="Skor Kesejahteraan" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
-        {/* Chart 2 */}
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">
-            Skor Kesejahteraan per {kesejahteraanChartData.label}
-          </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={kesejahteraanChartData.data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={80} fontSize={12} />
-              <YAxis stroke="#666" />
-              <Tooltip />
-              <Bar dataKey="skor" fill="#728A6E" name="Skor Kesejahteraan" />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {/* Chart 3: Sektor Ekonomi */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Sektor Ekonomi (Rata-rata)</h2>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <BarChart layout="vertical" data={sectorChartData} margin={{ left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis type="number" stroke="#666" fontSize={12} />
+                <YAxis dataKey="name" type="category" stroke="#666" fontSize={12} />
+                <Tooltip />
+                <Bar dataKey="avg" fill="#8EA48B" name="Rata-rata" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Chart 4: Komponen Ekonomi */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Skor Komponen Ekonomi</h2>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <BarChart data={komponenEkonomiData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="name" stroke="#666" fontSize={12} />
+                <YAxis stroke="#666" fontSize={12} />
+                <Tooltip />
+                <Bar dataKey="avg" fill="#B3C8A1" name="Rata-rata" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
-        {/* Chart 3 */}
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">Sektor Ekonomi (Rata-rata)</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart layout="vertical" data={sectorChartData} margin={{ left: 120 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis type="number" stroke="#666" />
-              <YAxis dataKey="name" type="category" stroke="#666" />
-              <Tooltip />
-              <Bar dataKey="avg" fill="#8EA48B" name="Rata-rata" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {/* Chart 5: Distribusi Sektor Dominan */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Distribusi Sektor Ekonomi</h2>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <PieChart>
+                <Pie
+                  data={sektorDominanDistribution}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {sektorDominanDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
 
-        {/* Chart 4 */}
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">Skor Komponen Ekonomi</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={komponenEkonomiData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis dataKey="name" stroke="#666" />
-              <YAxis stroke="#666" />
-              <Tooltip />
-              <Bar dataKey="avg" fill="#B3C8A1" name="Rata-rata" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Chart 5 */}
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">Infrastruktur Ekonomi (Rata-rata)</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={infrastrukturEkonomiData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis dataKey="name" stroke="#666" />
-              <YAxis stroke="#666" />
-              <Tooltip />
-              <Bar dataKey="avg" fill="#C9D9C3" name="Skor" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Chart 6 */}
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">Distribusi Kluster Ekonomi</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={clusterDistribution}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                dataKey="value"
-              >
-                {clusterDistribution.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          {/* Chart 6: Distribusi Kluster */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Distribusi Kluster Ekonomi</h2>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <PieChart>
+                <Pie
+                  data={clusterDistribution}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={renderCustomLabel}
+                  outerRadius={80}
+                  dataKey="value"
+                >
+                  {clusterDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
       {/* Table & Pagination */}
-      <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-          <h2 className="text-lg font-semibold text-black">
+      <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+          <h2 className="text-base sm:text-lg font-semibold text-black">
             Detail Ekonomi Desa ({tableData.length.toLocaleString()} hasil)
           </h2>
           <input
@@ -851,17 +932,55 @@ export default function EkonomiPage() {
               setSearchTerm(e.target.value)
               setCurrentPage(1)
             }}
-            className="px-4 py-2 border border-[#c9ece7] rounded-lg bg-white text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#5fb8a8]"
+            className="px-3 py-2 sm:px-4 sm:py-2 border border-[#c9ece7] rounded-lg bg-white text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
           />
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Tabel untuk Mobile */}
+        <div className="sm:hidden">
+          {paginatedData.length > 0 ? (
+            paginatedData.map((item, index) => (
+              <div key={item.NAMA_DESA + index} className="border-b border-[#e0e0e0] pb-4 mb-4 last:border-0 last:pb-0 last:mb-0">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-black font-medium">{item.NAMA_DESA}</p>
+                    <p className="text-gray-600 text-sm">{item.NAMA_KEC}, {item.NAMA_KAB}</p>
+                  </div>
+                  <span
+                    className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                      item.cluster === 0
+                        ? "bg-green-900 text-green-200"
+                        : item.cluster === 1
+                        ? "bg-yellow-900 text-yellow-200"
+                        : "bg-red-900 text-red-200"
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                  <div>Total KK: {item.total_kk}</div>
+                  <div>Kesejahteraan: {item.skor_kesejahteraan.toFixed(1)}</div>
+                  <div>BUMDES: {item.skor_bumdes.toFixed(1)}</div>
+                  <div>Koperasi: {item.skor_koperasi.toFixed(1)}</div>
+                  <div>Industri: {item.skor_industri.toFixed(1)}</div>
+                  <div>Total Skor: {item.skor_ekonomi_total.toFixed(1)}</div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-gray-500 py-4">Tidak ada data ditemukan</p>
+          )}
+        </div>
+
+        {/* Tabel untuk Desktop */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-[#c9ece7] bg-gray-50">
                 {["No", "Kabupaten", "Kecamatan", "Desa", "Total KK", "Kesejahteraan", "BUMDES", "Koperasi", "Industri", "Total Skor", "Label"]
                   .map((h, i) => (
-                    <th key={i} className="px-4 py-3 text-left text-black font-semibold text-sm">{h}</th>
+                    <th key={i} className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">{h}</th>
                   ))}
               </tr>
             </thead>
@@ -869,19 +988,19 @@ export default function EkonomiPage() {
               {paginatedData.length > 0 ? (
                 paginatedData.map((item, index) => (
                   <tr key={item.NAMA_DESA + index} className="border-b border-[#e0e0e0] hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-black text-sm">{startIndex + index + 1}</td>
-                    <td className="px-4 py-3 text-black text-sm">{item.NAMA_KAB}</td>
-                    <td className="px-4 py-3 text-black text-sm">{item.NAMA_KEC}</td>
-                    <td className="px-4 py-3 text-black font-medium text-sm">{item.NAMA_DESA}</td>
-                    <td className="px-4 py-3 text-black text-sm">{item.total_kk}</td>
-                    <td className="px-4 py-3 text-black text-sm">{item.skor_kesejahteraan.toFixed(1)}</td>
-                    <td className="px-4 py-3 text-black text-sm">{item.skor_bumdes.toFixed(1)}</td>
-                    <td className="px-4 py-3 text-black text-sm">{item.skor_koperasi.toFixed(1)}</td>
-                    <td className="px-4 py-3 text-black text-sm">{item.skor_industri.toFixed(1)}</td>
-                    <td className="px-4 py-3 text-black font-semibold text-sm">{item.skor_ekonomi_total.toFixed(1)}</td>
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{startIndex + index + 1}</td>
+                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.NAMA_KAB}</td>
+                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.NAMA_KEC}</td>
+                    <td className="px-3 py-2 text-black font-medium text-xs sm:text-sm">{item.NAMA_DESA}</td>
+                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.total_kk}</td>
+                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.skor_kesejahteraan.toFixed(1)}</td>
+                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.skor_bumdes.toFixed(1)}</td>
+                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.skor_koperasi.toFixed(1)}</td>
+                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.skor_industri.toFixed(1)}</td>
+                    <td className="px-3 py-2 text-black font-semibold text-xs sm:text-sm">{item.skor_ekonomi_total.toFixed(1)}</td>
+                    <td className="px-3 py-2 text-xs sm:text-sm">
                       <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                        className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
                           item.cluster === 0
                             ? "bg-green-900 text-green-200"
                             : item.cluster === 1
@@ -896,7 +1015,7 @@ export default function EkonomiPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={11} className="px-4 py-6 text-center text-gray-500">
+                  <td colSpan={11} className="px-3 py-4 text-center text-gray-500 text-xs sm:text-sm">
                     Tidak ada data ditemukan
                   </td>
                 </tr>
@@ -905,16 +1024,16 @@ export default function EkonomiPage() {
           </table>
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-6 pt-6 border-t border-[#c9ece7]">
-          <div className="text-black text-sm">
-            Menampilkan {paginatedData.length > 0 ? startIndex + 1 : 0} -{" "}
-            {Math.min(endIndex, tableData.length)} dari {tableData.length.toLocaleString()} data
+        <div className="mt-4 pt-4 border-t border-[#c9ece7] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="text-xs sm:text-sm text-black">
+            Menampilkan {paginatedData.length > 0 ? startIndex + 1 : 0} hingga{" "}
+            {Math.min(endIndex, tableData.length)} dari {tableData.length} data
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
               onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="px-4 py-2 border border-[#c9ece7] rounded-lg text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+              className="px-3 py-1 sm:px-4 sm:py-2 border border-[#c9ece7] rounded text-xs sm:text-sm text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
             >
               Sebelumnya
             </button>
@@ -935,7 +1054,7 @@ export default function EkonomiPage() {
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`px-3 py-2 rounded-lg text-sm ${
+                    className={`px-2 py-1 sm:px-3 sm:py-2 rounded text-xs sm:text-sm ${
                       currentPage === pageNum
                         ? "bg-green-600 text-white"
                         : "border border-gray-300 text-black hover:bg-gray-100"
@@ -950,7 +1069,7 @@ export default function EkonomiPage() {
             <button
               onClick={() => setCurrentPage((prev) => Math.min(prev + 1, tableTotalPages))}
               disabled={currentPage === tableTotalPages}
-              className="px-4 py-2 border border-[#c9ece7] rounded-lg text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+              className="px-3 py-1 sm:px-4 sm:py-2 border border-[#c9ece7] rounded text-xs sm:text-sm text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
             >
               Selanjutnya
             </button>

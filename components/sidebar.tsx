@@ -21,7 +21,7 @@ export default function Sidebar({ activePage, setActivePage, isOpen, setIsOpen }
       label: "TIPOLOGI DAERAH",
       icon: "/logo/HOME.png",
       submenu: [
-        { label: "Overview", id: "overview" },
+        { label: "Tipologi", id: "overview" },
         { label: "Infrastruktur", id: "infrastruktur" },
         { label: "Ekonomi", id: "ekonomi" },
         { label: "Kesehatan", id: "kesehatan" },
@@ -98,7 +98,7 @@ export default function Sidebar({ activePage, setActivePage, isOpen, setIsOpen }
                   alt={`${menu.label} icon`}
                   className={`${
                     isOpen 
-                      ? 'w-10 h-10'           // Saat terbuka: ukuran besar
+                      ? 'w-8 h-8'           // Saat terbuka: ukuran besar
                       : 'w-8 h-8 object-cover' // Saat tertutup: ukuran sedang + object-cover agar fill container
                   }`}
                 />

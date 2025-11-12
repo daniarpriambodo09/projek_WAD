@@ -64,9 +64,60 @@ interface ClusterTipologiData {
   final_label: string
 }
 
+// Fungsi bantu untuk wrap teks (tetap dipakai)
+const wrapText = (text: string, maxCharsPerLine = 18) => {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let currentLine = "";
+
+  words.forEach((word) => {
+    const candidate = currentLine ? `${currentLine} ${word}` : word;
+    if (candidate.length > maxCharsPerLine) {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = candidate;
+    }
+  });
+
+  if (currentLine) lines.push(currentLine);
+  return lines;
+};
+
+const renderCustomLabel = (props: any) => {
+  const { cx, cy, midAngle, outerRadius, percent, name } = props;
+  const RADIAN = Math.PI / 180;
+  const offset = 30;
+  const radius = outerRadius + offset;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  const lines = wrapText(String(name), 30);
+  const anchor = x > cx ? "start" : "end";
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="#12201A"
+        textAnchor={anchor}
+        dominantBaseline="central"
+        fontSize={12}
+      >
+        {lines.map((line: string, i: number) => (
+          <tspan key={i} x={x} dy={i === 0 ? 0 : "1.1em"}>
+            {line}
+          </tspan>
+        ))}
+        <tspan x={x} dy="1.1em">
+          {`${(percent * 100).toFixed(0)}%`}
+        </tspan>
+      </text>
+    );
+  };
+
 const MapComponent = dynamic(() => import("./MapComponent"), {
   ssr: false,
-  loading: () => <div className="h-96 bg-white/80 backdrop-blur-sm rounded-lg animate-pulse" />,
+  loading: () => <div className="h-64 sm:h-80 md:h-96 bg-white/80 backdrop-blur-sm rounded-lg animate-pulse" />,
 })
 
 const COLORS = [
@@ -77,7 +128,7 @@ const COLORS = [
   '#B3C8A1', // Infrastruktur / Desa Tertinggal
   '#9AB59F'  // Alternatif / Desa Spesifik
 ];
-const ITEMS_PER_PAGE = 10
+const ITEMS_PER_PAGE = 5 // Kurangi jumlah item per halaman di mobile
 
 export default function OverviewPage() {
   const [data, setData] = useState<ClusterTipologiData[]>([])
@@ -122,7 +173,7 @@ export default function OverviewPage() {
       setSelectedDesa("")
       return
     }
-    const kecList = [...new Set(data.filter(d => d.NAMA_KAB === selectedKab).map(d => d.NAMA_KEC))]
+    const kecList = [...new Set(data.filter(d => d.NAMA_KAB === selectedKab).map(d => d.NAMA_KEC))].sort()
     setKecamatanOptions(kecList)
     setSelectedKec("")
     setSelectedDesa("")
@@ -134,7 +185,7 @@ export default function OverviewPage() {
       setSelectedDesa("")
       return
     }
-    const desaList = [...new Set(data.filter(d => d.NAMA_KEC === selectedKec && d.NAMA_KAB === selectedKab).map(d => d.NAMA_DESA))]
+    const desaList = [...new Set(data.filter(d => d.NAMA_KEC === selectedKec && d.NAMA_KAB === selectedKab).map(d => d.NAMA_DESA))].sort()
     setDesaOptions(desaList)
     setSelectedDesa("")
   }, [selectedKec, selectedKab, data])
@@ -444,39 +495,39 @@ export default function OverviewPage() {
   }, [visibleDataSummary, selectedKab, selectedKec, selectedDesa, setPageContext])
 
   if (loading) {
-    return <div className="p-8 text-black">Memuat data dari server...</div>
+    return <div className="p-4 sm:p-6 text-black">Memuat data dari server...</div>
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-2 p-2 sm:p-2">
       {/* STICKY HEADER */}
-      <div className="sticky top-0 z-50 backdrop-blur-sm border-b border-[#c9ece7] px-6 py-4 -mx-6">
-        <div className="flex items-start justify-between gap-4">
+      <div className="sticky top-0 z-50 backdrop-blur-sm border-b border-[#c9ece7] px-4 sm:px-6 py-4 -mx-4 sm:-mx-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-black mb-2">Dashboard Overview Desa</h1>
-            <p className="text-gray-600">Tipologi desa berdasarkan klaster multidimensional</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-black mb-2">Dashboard Tipologi Desa</h1>
+            <p className="text-sm sm:text-base text-gray-600">Tipologi desa berdasarkan klaster multidimensional</p>
           </div>
-          <div className="flex gap-3 flex-wrap justify-end">
-            <div className="flex flex-col gap-1">
+          <div className="flex flex-col sm:flex-row gap-3 flex-wrap justify-end">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-xs font-bold text-gray-600">Filter Kabupaten</label>
               <select
                 value={selectedKab}
                 onChange={(e) => setSelectedKab(e.target.value)}
-                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8]"
+                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
               >
                 <option value="">Semua Kabupaten</option>
-                {[...new Set(data.map(d => d.NAMA_KAB))].map(kab => (
+                {[...new Set(data.map(d => d.NAMA_KAB))].sort().map(kab => (
                   <option key={kab} value={kab}>{kab}</option>
                 ))}
               </select>
             </div>
 
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-xs font-bold text-gray-600">Filter Kecamatan</label>
               <select
                 value={selectedKec}
                 onChange={(e) => setSelectedKec(e.target.value)}
-                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8]"
+                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
                 disabled={!selectedKab}
               >
                 <option value="">Semua Kecamatan</option>
@@ -486,12 +537,12 @@ export default function OverviewPage() {
               </select>
             </div>
 
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-xs font-bold text-gray-600">Filter Desa</label>
               <select
                 value={selectedDesa}
                 onChange={(e) => setSelectedDesa(e.target.value)}
-                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8]"
+                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
                 disabled={!selectedKec}
               >
                 <option value="">Semua Desa</option>
@@ -505,31 +556,31 @@ export default function OverviewPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <p className="text-black text-sm font-medium">Total Desa</p>
-          <p className="text-3xl font-bold text-black mt-2">{stats.totalDesa}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
+          <p className="text-black text-xs sm:text-sm font-medium">Total Desa</p>
+          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.totalDesa}</p>
         </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <p className="text-black text-sm font-medium">Rata-rata Akses Dasar</p>
-          <p className="text-3xl font-bold text-black mt-2">{stats.avgAksesDasar}</p>
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
+          <p className="text-black text-xs sm:text-sm font-medium">Rata-rata Akses Dasar</p>
+          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgAksesDasar}</p>
         </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <p className="text-black text-sm font-medium">Rata-rata Kesejahteraan</p>
-          <p className="text-3xl font-bold text-black mt-2">{stats.avgKesejahteraan}</p>
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
+          <p className="text-black text-xs sm:text-sm font-medium">Rata-rata Kesejahteraan</p>
+          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgKesejahteraan}</p>
         </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <p className="text-black text-sm font-medium">Rata-rata Digital Ready</p>
-          <p className="text-3xl font-bold text-black mt-2">{stats.avgDigital}</p>
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
+          <p className="text-black text-xs sm:text-sm font-medium">Rata-rata Digital Ready</p>
+          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgDigital}</p>
         </div>
       </div>
 
       {/* Map */}
       <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-lg overflow-hidden">
-        <h2 className="text-lg font-semibold text-black p-3 pb-2">
+        <h2 className="text-base sm:text-lg font-semibold text-black p-3 pb-2">
           Sebaran Desa di Jawa Timur ({mapMarkers.length} desa)
         </h2>
-        <div className="h-96 w-full">
+        <div className="h-64 sm:h-80 w-full">
           <MapComponent
             markers={mapMarkers}
             renderTooltip={(marker) => (
@@ -545,123 +596,129 @@ export default function OverviewPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Chart 1 */}
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">
-            Rata-rata Skor Akses Dasar per {chartData.label}
-          </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData.aksesDasar}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={80} fontSize={12} />
-              <YAxis stroke="#666" />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="Akses Dasar" fill="#324D3E" />
-            </BarChart>
-          </ResponsiveContainer>
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {/* Chart 1 */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">
+              Rata-rata Skor Akses Dasar per {chartData.label}
+            </h2>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <BarChart data={chartData.aksesDasar}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={60} fontSize={10} />
+                <YAxis stroke="#666" />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="Akses Dasar" fill="#324D3E" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Chart 2 */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">
+              Rata-rata Skor Kesejahteraan per {chartData.label}
+            </h2>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <LineChart data={chartData.kesejahteraan}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={60} fontSize={10} />
+                <YAxis stroke="#666" />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="Kesejahteraan" stroke="#5A7A60" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
-        {/* Chart 2 */}
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">
-            Rata-rata Skor Kesejahteraan per {chartData.label}
-          </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData.kesejahteraan}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={80} fontSize={12} />
-              <YAxis stroke="#666" />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="Kesejahteraan" stroke="#5A7A60" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {/* Chart 3 */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">
+              Skor Komponen per {chartData.label}
+            </h2>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <BarChart data={komponenChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={60} fontSize={10} />
+                <YAxis stroke="#666" />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="avg" fill="#728A6E" name="Rata-rata" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Chart 4 */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">
+              Jumlah Sektor Dominan pada Wilayah per {chartData.label}
+            </h2>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <BarChart data={sektorChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="name" stroke="#666" />
+                <YAxis stroke="#666" />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="count" fill="#8EA48B" name="Jumlah Desa" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
-        {/* Chart 3 */}
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">
-            Skor Komponen per {chartData.label}
-          </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={komponenChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={80} fontSize={12} />
-              <YAxis stroke="#666" />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="avg" fill="#728A6E" name="Rata-rata" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {/* Chart 5 */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">
+              Ketersediaan Infrastruktur & Program per {chartData.label}
+            </h2>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <BarChart data={infraProgramChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={60} fontSize={10} />
+                <YAxis stroke="#666" />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="value" fill="#B3C8A1" name="Jumlah Desa" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
 
-        {/* Chart 4 */}
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">
-            Jumlah Sektor Dominan pada Wilayah per {chartData.label}
-          </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={sektorChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis dataKey="name" stroke="#666" />
-              <YAxis stroke="#666" />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="count" fill="#8EA48B" name="Jumlah Desa" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Chart 5 */}
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">
-            Ketersediaan Infrastruktur & Program per {chartData.label}
-          </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={infraProgramChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={80} fontSize={12} />
-              <YAxis stroke="#666" />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="value" fill="#B3C8A1" name="Jumlah Desa" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Chart 6 */}
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">
-            Distribusi Kluster Tipologi Desa
-          </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={clusterDistribution}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {clusterDistribution.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          {/* Chart 6 */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">
+              Distribusi Kluster Tipologi Desa
+            </h2>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <PieChart margin={{bottom:20}}>
+                <Pie
+                  data={clusterDistribution}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={renderCustomLabel}
+                  outerRadius={75}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {clusterDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-          <h2 className="text-lg font-semibold text-black">
+      <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+          <h2 className="text-base sm:text-lg font-semibold text-black">
             Detail Tipologi Desa ({tableData.length.toLocaleString()} hasil)
           </h2>
           <input
@@ -672,25 +729,59 @@ export default function OverviewPage() {
               setSearchTerm(e.target.value)
               setCurrentPage(1)
             }}
-            className="px-4 py-2 border border-[#c9ece7] rounded-lg bg-white text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#5fb8a8]"
+            className="px-3 py-2 sm:px-4 sm:py-2 border border-[#c9ece7] rounded-lg bg-white text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
           />
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Tabel untuk Mobile */}
+        <div className="sm:hidden overflow-x-auto">
+          {paginatedData.length > 0 ? (
+            paginatedData.map((item, index) => {
+              const sektor =
+                item.sektor_pertanian === 1 ? "Pertanian" : item.sektor_industri === 1 ? "Industri" : "Jasa"
+              return (
+                <div key={item.IDDESA + index} className="border-b border-[#e0e0e0] pb-4 mb-4 last:border-0 last:pb-0 last:mb-0">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-black font-medium">{item.NAMA_DESA}</p>
+                      <p className="text-gray-600 text-sm">{item.NAMA_KEC}, {item.NAMA_KAB}</p>
+                    </div>
+                    <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {item.final_label}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                    <div>Akses Dasar: {safeToFixed(item.skor_akses_dasar)}</div>
+                    <div>Konektivitas: {safeToFixed(item.skor_konektivitas)}</div>
+                    <div>Kesejahteraan: {safeToFixed(item.skor_kesejahteraan)}</div>
+                    <div>Lingkungan: {safeToFixed(item.skor_kualitas_lingkungan)}</div>
+                    <div>Digital: {safeToFixed(item.skor_digital_readiness)}</div>
+                    <div>Sektor: {sektor}</div>
+                  </div>
+                </div>
+              )
+            })
+          ) : (
+            <p className="text-center text-gray-500 py-4">Tidak ada data ditemukan</p>
+          )}
+        </div>
+
+        {/* Tabel untuk Desktop */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-[#c9ece7] bg-gray-50">
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">No</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Kab/Kota</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Kecamatan</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Desa</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Akses Dasar</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Konektivitas</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Kesejahteraan</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Lingkungan</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Digital Ready</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Sektor</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Label</th>
+                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">No</th>
+                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Kab/Kota</th>
+                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Kecamatan</th>
+                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Desa</th>
+                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Akses Dasar</th>
+                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Konektivitas</th>
+                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Kesejahteraan</th>
+                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Lingkungan</th>
+                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Digital Ready</th>
+                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Sektor</th>
+                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Label</th>
               </tr>
             </thead>
             <tbody>
@@ -700,18 +791,26 @@ export default function OverviewPage() {
                     item.sektor_pertanian === 1 ? "Pertanian" : item.sektor_industri === 1 ? "Industri" : "Jasa"
                   return (
                     <tr key={item.IDDESA + index} className="border-b border-[#e0e0e0] hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 text-black text-sm">{startIndex + index + 1}</td>
-                      <td className="px-4 py-3 text-black text-sm">{item.NAMA_KAB}</td>
-                      <td className="px-4 py-3 text-black text-sm">{item.NAMA_KEC}</td>
-                      <td className="px-4 py-3 text-black font-medium text-sm">{item.NAMA_DESA}</td>
-                      <td className="px-4 py-3 text-black text-sm">{safeToFixed(item.skor_akses_dasar)}</td>
-                      <td className="px-4 py-3 text-black text-sm">{safeToFixed(item.skor_konektivitas)}</td>
-                      <td className="px-4 py-3 text-black text-sm">{safeToFixed(item.skor_kesejahteraan)}</td>
-                      <td className="px-4 py-3 text-black text-sm">{safeToFixed(item.skor_kualitas_lingkungan)}</td>
-                      <td className="px-4 py-3 text-black text-sm">{safeToFixed(item.skor_digital_readiness)}</td>
-                      <td className="px-4 py-3 text-black text-sm">{sektor}</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <td className="px-3 py-2 text-black text-xs sm:text-sm">{startIndex + index + 1}</td>
+                      <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.NAMA_KAB}</td>
+                      <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.NAMA_KEC}</td>
+                      <td className="px-3 py-2 text-black font-medium text-xs sm:text-sm">{item.NAMA_DESA}</td>
+                      <td className="px-3 py-2 text-black text-xs sm:text-sm">{safeToFixed(item.skor_akses_dasar)}</td>
+                      <td className="px-3 py-2 text-black text-xs sm:text-sm">{safeToFixed(item.skor_konektivitas)}</td>
+                      <td className="px-3 py-2 text-black text-xs sm:text-sm">{safeToFixed(item.skor_kesejahteraan)}</td>
+                      <td className="px-3 py-2 text-black text-xs sm:text-sm">{safeToFixed(item.skor_kualitas_lingkungan)}</td>
+                      <td className="px-3 py-2 text-black text-xs sm:text-sm">{safeToFixed(item.skor_digital_readiness)}</td>
+                      <td className="px-3 py-2 text-black text-xs sm:text-sm">{sektor}</td>
+                      <td className="px-3 py-2 text-xs sm:text-sm">
+                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                          item.cluster === 0
+                            ? "bg-green-900 text-green-200"
+                            : item.cluster === 1
+                            ? "bg-blue-900 text-blue-200"
+                            :item.cluster === 2
+                            ? "bg-yellow-900 text-yellow-200"
+                            : "bg-red-900 text-red-200"
+                        }`}>
                           {item.final_label}
                         </span>
                       </td>
@@ -720,7 +819,7 @@ export default function OverviewPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={11} className="px-4 py-6 text-center text-gray-500">
+                  <td colSpan={11} className="px-3 py-4 text-center text-gray-500">
                     Tidak ada data ditemukan
                   </td>
                 </tr>
@@ -729,17 +828,17 @@ export default function OverviewPage() {
           </table>
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-6 pt-6 border-t border-[#c9ece7]">
-          <div className="text-black text-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-4 pt-4 border-t border-[#c9ece7]">
+          <div className="text-black text-xs sm:text-sm">
             Menampilkan {paginatedData.length > 0 ? startIndex + 1 : 0} -{" "}
             {Math.min(endIndex, tableData.length)} dari {tableData.length.toLocaleString()} data
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
               onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="px-4 py-2 border border-[#c9ece7] rounded-lg text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+              className="px-3 py-1 sm:px-4 sm:py-2 border border-[#c9ece7] rounded text-xs sm:text-sm text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
             >
               Sebelumnya
             </button>
@@ -760,7 +859,7 @@ export default function OverviewPage() {
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`px-3 py-2 rounded-lg text-sm ${
+                    className={`px-2 py-1 sm:px-3 sm:py-2 rounded text-xs sm:text-sm ${
                       currentPage === pageNum
                         ? "bg-green-600 text-white"
                         : "border border-gray-300 text-black hover:bg-gray-100"
@@ -775,7 +874,7 @@ export default function OverviewPage() {
             <button
               onClick={() => setCurrentPage((prev) => Math.min(prev + 1, tableTotalPages))}
               disabled={currentPage === tableTotalPages}
-              className="px-4 py-2 border border-[#c9ece7] rounded-lg text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+              className="px-3 py-1 sm:px-4 sm:py-2 border border-[#c9ece7] rounded text-xs sm:text-sm text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
             >
               Selanjutnya
             </button>

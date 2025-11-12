@@ -1,26 +1,47 @@
 // siDesa/app/api/gemini/chat/route.ts
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+// Gunakan variabel global untuk menyimpan history (bukan persisten, hanya per sesi serverless)
+let conversationHistory: any[] = [];
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const res = await fetch('http://localhost:3001/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const { prompt, sendHistory = true } = await req.json();
 
-    if (!res.ok) {
-      const error = await res.json();
-      return NextResponse.json({ error: error.error }, { status: res.status });
+    if (!prompt) {
+      return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
     }
 
-    const data = await res.json();
-    return NextResponse.json(data);
+    let chat;
+    if (sendHistory && conversationHistory.length > 0) {
+      chat = model.startChat({ history: conversationHistory });
+    } else {
+      chat = model.startChat({ history: [] });
+      conversationHistory = []; // Reset jika tidak kirim history
+    }
+
+    const result = await chat.sendMessage(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    // Update history
+    conversationHistory.push({ role: 'user', parts: [{ text: prompt }] });
+    conversationHistory.push({ role: 'model', parts: [{ text: text }] });
+
+    // Batasi history agar tidak terlalu panjang
+    if (conversationHistory.length > 20) {
+      conversationHistory = conversationHistory.slice(-20);
+    }
+
+    return NextResponse.json({ response: text });
   } catch (error) {
-    console.error('Proxy error:', error);
+    console.error("Error calling Gemini API:", error);
     return NextResponse.json(
-      { error: 'Failed to reach AI backend' },
+      { error: "Internal Server Error calling AI model." },
       { status: 500 }
     );
   }

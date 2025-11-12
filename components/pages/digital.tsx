@@ -45,12 +45,12 @@ interface DigitalData {
 const MapComponent = dynamic(() => import("./MapComponent"), {
   ssr: false,
   loading: () => (
-    <div className="h-96 bg-white/80 backdrop-blur-sm rounded-lg animate-pulse" />
+    <div className="h-64 sm:h-80 bg-white/80 backdrop-blur-sm rounded-lg animate-pulse" />
   ),
 })
 
 const COLORS = ["#324D3E", "#728A6E", "#8EA48B", "#B3C8A1", "#C9D9C3"]
-const ITEMS_PER_PAGE = 10
+const ITEMS_PER_PAGE = 5 // Kurangi untuk mobile
 
 // Fungsi bantu untuk wrap teks (tetap dipakai)
 const wrapText = (text: string, maxCharsPerLine = 18) => {
@@ -79,7 +79,7 @@ const renderCustomLabel = (props: any) => {
   const radius = outerRadius + offset;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  const lines = wrapText(String(name), 18);
+  const lines = wrapText(String(name), 20);
   const anchor = x > cx ? "start" : "end";
 
   return (
@@ -89,7 +89,7 @@ const renderCustomLabel = (props: any) => {
       fill="#12201A"
       textAnchor={anchor}
       dominantBaseline="central"
-      fontSize={14}
+      fontSize={12}
     >
       {lines.map((line: string, i: number) => (
         <tspan key={i} x={x} dy={i === 0 ? 0 : "1.1em"}>
@@ -115,6 +115,10 @@ export default function DigitalPage() {
   const [selectedDesa, setSelectedDesa] = useState<string>("")
   const [kecamatanOptions, setKecamatanOptions] = useState<string[]>([])
   const [desaOptions, setDesaOptions] = useState<string[]>([])
+
+  // Filter Komponen untuk Grafik
+  const [selectedBtsOperator, setSelectedBtsOperator] = useState<string>("bts") // "bts" atau "operator"
+  const [selectedSignal, setSelectedSignal] = useState<string>("telepon") // "telepon" atau "internet"
 
   const {setPageContext} = useChatbotContext();
 
@@ -159,7 +163,7 @@ export default function DigitalPage() {
   // === TOP 5 KABUPATEN (berdasarkan skor digital) ===
   const top5Digital = useMemo(() => {
     if (!data.length) return { terbaik: [], terburuk: [] };
-    
+
     const byKab = data.reduce((acc, d) => {
       const key = d.NAMA_KAB;
       if (!acc[key]) {
@@ -183,7 +187,7 @@ export default function DigitalPage() {
     };
   }, [data]);
 
-  // === DATA UNTUK ANALISIS PER KECAMATAN (abaikan desa) ===
+  // === DATA UNTUK ANALISIS PER KECAMATAN (abaikan selectedDesa) ===
   const kecamatanData = useMemo(() => {
     if (!data.length) return [];
     let result = data;
@@ -304,7 +308,7 @@ export default function DigitalPage() {
             sinyal_telepon: (desaTerbaik as DigitalData).sinyal_telepon,
             sinyal_internet: (desaTerbaik as DigitalData).sinyal_internet,
             warnet: (desaTerbaik as DigitalData).ada_warnet,
-            komputer_desa: (desaTerbaik as DigitalData).komputer_desa, 
+            komputer_desa: (desaTerbaik as DigitalData).komputer_desa,
             skor_readiness : (desaTerbaik as DigitalData).skor_digital_readiness,
             skor_dig_pemerintahan : (desaTerbaik as DigitalData).skor_digitalisasi_pemdes,
             internet_kantor: (desaTerbaik as DigitalData).internet_kantordesa,
@@ -363,7 +367,7 @@ export default function DigitalPage() {
       setSelectedDesa("")
       return
     }
-    const kecList = [...new Set(data.filter(d => d.NAMA_KAB === selectedKab).map(d => d.NAMA_KEC))]
+    const kecList = [...new Set(data.filter(d => d.NAMA_KAB === selectedKab).map(d => d.NAMA_KEC))].sort()
     setKecamatanOptions(kecList)
     setSelectedKec("")
     setSelectedDesa("")
@@ -375,7 +379,7 @@ export default function DigitalPage() {
       setSelectedDesa("")
       return
     }
-    const desaList = [...new Set(data.filter(d => d.NAMA_KEC === selectedKec && d.NAMA_KAB === selectedKab).map(d => d.NAMA_DESA))]
+    const desaList = [...new Set(data.filter(d => d.NAMA_KEC === selectedKec && d.NAMA_KAB === selectedKab).map(d => d.NAMA_DESA))].sort()
     setDesaOptions(desaList)
     setSelectedDesa("")
   }, [selectedKec, selectedKab, data])
@@ -389,7 +393,7 @@ export default function DigitalPage() {
         .select('*');
 
       if (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching ', error);
         setData([]);
       } else {
         setData(data);
@@ -435,7 +439,6 @@ export default function DigitalPage() {
   const paginatedData = useMemo(() => tableData.slice(startIndex, endIndex), [tableData, startIndex, endIndex])
   const tableTotalPages = Math.ceil(tableData.length / ITEMS_PER_PAGE)
 
-  // === MAP MARKERS ===
   // === MAP MARKERS: HANYA SAMPAI LEVEL KECAMATAN (filter desa diabaikan untuk peta) ===
 const mapMarkers = useMemo(() => {
   if (!data.length) return []
@@ -534,7 +537,7 @@ const mapMarkers = useMemo(() => {
     }))
 }, [data, selectedKab, selectedKec]) // ⚠️ JANGAN masukkan selectedDesa ke dependency array!
 
-  // === CHART DATA: AGREGASI BERDASARKAN LEVEL FILTER ===
+  // === CHART DATA: Rata-rata Jumlah BTS dan Operator (dengan filter) ===
   const btsOperatorByKabupaten = useMemo(() => {
     if (!data.length) return []
     const process = (items: DigitalData[]) => {
@@ -546,6 +549,22 @@ const mapMarkers = useMemo(() => {
         acc[key].count += 1
         return acc
       }, {} as Record<string, { name: string; totalBts: number; totalOperator: number; count: number }>)
+
+      // Jika filter diatur ke 'bts', maka hanya kembalikan data untuk BTS
+      if (selectedBtsOperator === "bts") {
+        return Object.values(grouped).map(item => ({
+          name: item.name,
+          value: Number((item.totalBts / item.count).toFixed(1)),
+        }))
+      }
+      // Jika filter diatur ke 'operator', maka hanya kembalikan data untuk Operator
+      else if (selectedBtsOperator === "operator") {
+        return Object.values(grouped).map(item => ({
+          name: item.name,
+          value: Number((item.totalOperator / item.count).toFixed(1)),
+        }))
+      }
+      // Default: kembalikan kedua-duanya (untuk kompatibilitas, tapi seharusnya tidak terjadi karena filter selalu ada)
       return Object.values(grouped).map(item => ({
         name: item.name,
         bts: Number((item.totalBts / item.count).toFixed(1)),
@@ -562,8 +581,9 @@ const mapMarkers = useMemo(() => {
     } else {
       return process(data)
     }
-  }, [data, selectedKab, selectedKec, selectedDesa])
+  }, [data, selectedKab, selectedKec, selectedDesa, selectedBtsOperator])
 
+  // === CHART DATA: Rata-rata Sinyal Telepon dan Internet (dengan filter) ===
   const signalByKabupaten = useMemo(() => {
     if (!data.length) return []
     const process = (items: DigitalData[]) => {
@@ -575,6 +595,22 @@ const mapMarkers = useMemo(() => {
         acc[key].count += 1
         return acc
       }, {} as Record<string, { name: string; totalTelepon: number; totalInternet: number; count: number }>)
+
+      // Jika filter diatur ke 'telepon', maka hanya kembalikan data untuk Telepon
+      if (selectedSignal === "telepon") {
+        return Object.values(grouped).map(item => ({
+          name: item.name,
+          value: Number((item.totalTelepon / item.count).toFixed(1)),
+        }))
+      }
+      // Jika filter diatur ke 'internet', maka hanya kembalikan data untuk Internet
+      else if (selectedSignal === "internet") {
+        return Object.values(grouped).map(item => ({
+          name: item.name,
+          value: Number((item.totalInternet / item.count).toFixed(1)),
+        }))
+      }
+      // Default: kembalikan kedua-duanya (untuk kompatibilitas, tapi seharusnya tidak terjadi karena filter selalu ada)
       return Object.values(grouped).map(item => ({
         name: item.name,
         telepon: Number((item.totalTelepon / item.count).toFixed(1)),
@@ -591,7 +627,7 @@ const mapMarkers = useMemo(() => {
     } else {
       return process(data)
     }
-  }, [data, selectedKab, selectedKec, selectedDesa])
+  }, [data, selectedKab, selectedKec, selectedDesa, selectedSignal])
 
   const digitalInfraChartData = useMemo(() => {
     if (!activeData.length) return []
@@ -638,39 +674,39 @@ const mapMarkers = useMemo(() => {
   }, [activeData])
 
   if (loading) {
-    return <div className="p-8 text-black">Loading...</div>
+    return <div className="p-4 sm:p-6 text-black">Loading...</div>
   }
 
   return (
-    <div className="space-y-6 p-8">
+    <div className="space-y-2 p-2 sm:p-2">
       {/* STICKY HEADER */}
-      <div className="sticky top-0 z-50 backdrop-blur-sm border-b border-[#c9ece7] px-6 py-4 -mx-8">
-        <div className="flex items-start justify-between gap-4">
+      <div className="sticky top-0 z-50 backdrop-blur-sm border-b border-[#c9ece7] px-4 sm:px-6 py-4 -mx-4 sm:-mx-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-black mb-2">Analisis Digital Desa</h1>
-            <p className="text-gray-600">Data kluster transformasi digital masyarakat per desa</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-black mb-2">Analisis Digital Desa</h1>
+            <p className="text-sm sm:text-base text-gray-600">Data kluster transformasi digital masyarakat per desa</p>
           </div>
-          <div className="flex gap-3 flex-wrap justify-end">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-muted-foreground">Filter Kabupaten</label>
+          <div className="flex flex-col sm:flex-row gap-3 flex-wrap justify-end">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
+              <label className="text-xs font-bold text-gray-600">Filter Kabupaten</label>
               <select
                 value={selectedKab}
                 onChange={(e) => setSelectedKab(e.target.value)}
-                className="px-3 py-2 bg-white border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
               >
                 <option value="">Semua Kabupaten</option>
-                {[...new Set(data.map(d => d.NAMA_KAB))].map(kab => (
+                {[...new Set(data.map(d => d.NAMA_KAB))].sort().map(kab => (
                   <option key={kab} value={kab}>{kab}</option>
                 ))}
               </select>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-muted-foreground">Filter Kecamatan</label>
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
+              <label className="text-xs font-bold text-gray-600">Filter Kecamatan</label>
               <select
                 value={selectedKec}
                 onChange={(e) => setSelectedKec(e.target.value)}
-                className="px-3 py-2 bg-white border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
                 disabled={!selectedKab}
               >
                 <option value="">Semua Kecamatan</option>
@@ -680,12 +716,12 @@ const mapMarkers = useMemo(() => {
               </select>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-muted-foreground">Filter Desa</label>
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
+              <label className="text-xs font-bold text-gray-600">Filter Desa</label>
               <select
                 value={selectedDesa}
                 onChange={(e) => setSelectedDesa(e.target.value)}
-                className="px-3 py-2 bg-white border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
                 disabled={!selectedKec}
               >
                 <option value="">Semua Desa</option>
@@ -699,111 +735,161 @@ const mapMarkers = useMemo(() => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <p className="text-black text-sm font-medium">Total Desa</p>
-          <p className="text-3xl font-bold text-black mt-2">{stats.totalDesa}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
+          <p className="text-black text-xs sm:text-sm">Total Desa</p>
+          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.totalDesa}</p>
         </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <p className="text-black text-sm font-medium">Rata-rata Jumlah BTS</p>
-          <p className="text-3xl font-bold text-black mt-2">{stats.avgBts}</p>
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
+          <p className="text-black text-xs sm:text-sm">Rata-rata Jumlah BTS</p>
+          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgBts}</p>
         </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <p className="text-black text-sm font-medium">Rata-rata Jumlah Operator</p>
-          <p className="text-3xl font-bold text-black mt-2">{stats.avgOperator}</p>
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
+          <p className="text-black text-xs sm:text-sm">Rata-rata Jumlah Operator</p>
+          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgOperator}</p>
         </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <p className="text-black text-sm font-medium">Rata-rata Sinyal Internet</p>
-          <p className="text-3xl font-bold text-black mt-2">{stats.avgSinyalInternet}%</p>
+        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
+          <p className="text-black text-xs sm:text-sm">Rata-rata Sinyal Internet</p>
+          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgSinyalInternet}%</p>
         </div>
       </div>
 
       {/* Map */}
       <div className="border border-[#c9ece7] rounded-lg bg-white/80 backdrop-blur-sm overflow-hidden">
-        <h2 className="p-3 font-semibold text-black">Sebaran Desa ({mapMarkers.length} desa)</h2>
-        <div className="h-96 w-full">
+        <h2 className="text-base sm:text-lg font-semibold text-black p-3 pb-2">Sebaran Desa ({mapMarkers.length} desa)</h2>
+        <div className="h-64 sm:h-80 w-full">
           <MapComponent markers={mapMarkers} />
         </div>
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">
-            Rata-rata BTS dan Operator per {selectedKab && selectedKec ? "Desa" : selectedKab ? "Kecamatan" : "Kabupaten"}
-          </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={btsOperatorByKabupaten}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={80} fontSize={12} />
-              <YAxis stroke="#666" />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="bts" fill="#324D3E" name="BTS" />
-              <Bar dataKey="operator" fill="#728A6E" name="Operator" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {/* Chart 1: Distribusi Cluster */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Distribusi Kluster Digital</h2>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <PieChart margin={{ top: 30, right: 60, bottom: 30, left: 60 }}>
+                <Pie
+                  data={clusterDistribution}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={true}
+                  label={renderCustomLabel}
+                  outerRadius={75}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {clusterDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
 
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">
-            Kualitas Sinyal per {selectedKab && selectedKec ? "Desa" : selectedKab ? "Kecamatan" : "Kabupaten"}
-          </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={signalByKabupaten}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={80} fontSize={12} />
-              <YAxis stroke="#666" />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="telepon" fill="#324D3E"  name="Sinyal Telepon (%)" />
-              <Bar dataKey="internet" fill="#8EA48B"  name="Sinyal Internet (%)" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">Rata-rata Infrastruktur Digital</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={digitalInfraChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis dataKey="name" stroke="#666" />
-              <YAxis stroke="#666" />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="avg" fill="#B3C8A1" name="Rata-rata" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
-          <h2 className="text-lg font-semibold text-black mb-4">Distribusi Kluster Digital</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart margin={{ top: 30, right: 60, bottom: 30, left: 60 }}>
-              <Pie
-                data={clusterDistribution}
-                cx="50%"
-                cy="50%"
-                labelLine={true}
-                label={renderCustomLabel}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
+          {/* Chart 2: Rata-rata Jumlah BTS dan Operator (dengan filter) */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
+              <h2 className="text-base sm:text-lg font-semibold text-black mb-2 sm:mb-0">
+                Rata-rata {selectedBtsOperator === "bts" ? "Jumlah BTS" : "Jumlah Operator"} per {selectedKab && selectedKec ? "Desa" : selectedKab ? "Kecamatan" : "Kabupaten"}
+              </h2>
+              <select
+                value={selectedBtsOperator}
+                onChange={(e) => setSelectedBtsOperator(e.target.value)}
+                className="px-2 py-1 sm:px-3 sm:py-2 bg-white border border-[#c9ece7] rounded-md text-xs sm:text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full sm:w-auto"
               >
-                {clusterDistribution.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+                <option value="bts">Jumlah BTS</option>
+                <option value="operator">Jumlah Operator</option>
+              </select>
+            </div>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <BarChart data={btsOperatorByKabupaten}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={60} fontSize={10} />
+                <YAxis stroke="#666" fontSize={12} />
+                <Tooltip />
+                {/* Hanya tampilkan satu bar berdasarkan filter */}
+                <Bar
+                  dataKey="value"
+                  fill={
+                    selectedBtsOperator === "bts"
+                      ? "#324D3E"
+                      : "#728A6E"
+                  }
+                  name={
+                    selectedBtsOperator === "bts"
+                      ? "Jumlah BTS"
+                      : "Jumlah Operator"
+                  }
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {/* Chart 3: Kualitas Sinyal (dengan filter) */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
+              <h2 className="text-base sm:text-lg font-semibold text-black mb-2 sm:mb-0">
+                Kualitas Sinyal {selectedSignal === "telepon" ? "Telepon" : "Internet"} per {selectedKab && selectedKec ? "Desa" : selectedKab ? "Kecamatan" : "Kabupaten"}
+              </h2>
+              <select
+                value={selectedSignal}
+                onChange={(e) => setSelectedSignal(e.target.value)}
+                className="px-2 py-1 sm:px-3 sm:py-2 bg-white border border-[#c9ece7] rounded-md text-xs sm:text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full sm:w-auto"
+              >
+                <option value="telepon">Sinyal Telepon</option>
+                <option value="internet">Sinyal Internet</option>
+              </select>
+            </div>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <BarChart data={signalByKabupaten}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={60} fontSize={10} />
+                <YAxis stroke="#666" fontSize={12} />
+                <Tooltip />
+                {/* Hanya tampilkan satu bar berdasarkan filter */}
+                <Bar
+                  dataKey="value"
+                  fill={
+                    selectedSignal === "telepon"
+                      ? "#324D3E"
+                      : "#8EA48B"
+                  }
+                  name={
+                    selectedSignal === "telepon"
+                      ? "Sinyal Telepon (%)"
+                      : "Sinyal Internet (%)"
+                  }
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Chart 4: Rata-rata Infrastruktur Digital */}
+          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Rata-rata Infrastruktur Digital</h2>
+            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
+              <BarChart data={digitalInfraChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="name" stroke="#666" />
+                <YAxis stroke="#666" />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="avg" fill="#B3C8A1" name="Rata-rata" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-          <h2 className="text-lg font-semibold text-black">
+      <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+          <h2 className="text-base sm:text-lg font-semibold text-black">
             Detail Digital Desa ({tableData.length.toLocaleString()} hasil)
           </h2>
           <input
@@ -814,61 +900,100 @@ const mapMarkers = useMemo(() => {
               setSearchTerm(e.target.value)
               setCurrentPage(1)
             }}
-            className="px-4 py-2 border border-[#c9ece7] rounded-lg bg-white text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#5fb8a8]"
+            className="px-3 py-2 sm:px-4 sm:py-2 border border-[#c9ece7] rounded-lg bg-white text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
           />
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Tabel untuk Mobile */}
+        <div className="sm:hidden">
+          {paginatedData.length > 0 ? (
+            paginatedData.map((row, idx) => (
+              <div key={row.NAMA_DESA + idx} className="border-b border-[#e0e0e0] pb-4 mb-4 last:border-0 last:pb-0 last:mb-0">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-black font-medium">{row.NAMA_DESA}</p>
+                    <p className="text-gray-600 text-sm">{row.NAMA_KEC}, {row.NAMA_KAB}</p>
+                  </div>
+                  <span
+                    className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                      row.cluster === 0
+                        ? "bg-green-900 text-green-200"
+                        : row.cluster === 1
+                          ? "bg-yellow-900 text-yellow-200"
+                          : "bg-red-900 text-red-200"
+                    }`}
+                  >
+                    {row.label}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                  <div>BTS: {row.jumlah_bts}</div>
+                  <div>Operator: {row.jumlah_operator}</div>
+                  <div>Telepon: {row.sinyal_telepon}%</div>
+                  <div>Internet: {row.sinyal_internet}%</div>
+                  <div>Warnet: {row.ada_warnet}</div>
+                  <div>Komputer: {row.komputer_desa}</div>
+                  <div>Internet Kantor: {row.internet_kantordesa}</div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-gray-500 py-4">Tidak ada data ditemukan</p>
+          )}
+        </div>
+
+        {/* Tabel untuk Desktop */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b border-[#c9ece7] bg-gray-50">
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">No</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Nama Kab/Kota</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Nama Kecamatan</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Nama Desa</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Jumlah BTS</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Jumlah Operator</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Sinyal Telepon</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Sinyal Internet</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Warnet</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Komputer Desa</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Internet Kantor</th>
-                <th className="px-4 py-3 text-left text-black font-semibold text-sm">Label</th>
+              <tr className="border-b-2 border-gray-400 bg-gray-50">
+                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">No</th>
+                <th className="text-left py-3 px-3 text-black font-semibold text-xs sm:text-sm">Nama Kab/Kota</th>
+                <th className="text-left py-3 px-3 text-black font-semibold text-xs sm:text-sm">Nama Kecamatan</th>
+                <th className="text-left py-3 px-3 text-black font-semibold text-xs sm:text-sm">Nama Desa</th>
+                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Jumlah BTS</th>
+                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Jumlah Operator</th>
+                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Sinyal Telepon</th>
+                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Sinyal Internet</th>
+                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Warnet</th>
+                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Komputer Desa</th>
+                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Internet Kantor</th>
+                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Label</th>
               </tr>
             </thead>
             <tbody>
               {paginatedData.length > 0 ? (
-                paginatedData.map((item, index) => (
-                  <tr key={item.NAMA_DESA + index} className="border-b border-[#e0e0e0] hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-black text-sm">{startIndex + index + 1}</td>
-                    <td className="px-4 py-3 text-black text-sm">{item.NAMA_KAB}</td>
-                    <td className="px-4 py-3 text-black text-sm">{item.NAMA_KEC}</td>
-                    <td className="px-4 py-3 text-black font-medium text-sm">{item.NAMA_DESA}</td>
-                    <td className="px-4 py-3 text-black text-sm text-center">{item.jumlah_bts}</td>
-                    <td className="px-4 py-3 text-black text-sm text-center">{item.jumlah_operator}</td>
-                    <td className="px-4 py-3 text-black text-sm text-center">{item.sinyal_telepon}%</td>
-                    <td className="px-4 py-3 text-black text-sm text-center">{item.sinyal_internet}%</td>
-                    <td className="px-4 py-3 text-black text-sm text-center">{item.ada_warnet}</td>
-                    <td className="px-4 py-3 text-black text-sm text-center">{item.komputer_desa}</td>
-                    <td className="px-4 py-3 text-black text-sm text-center">{item.internet_kantordesa}</td>
-                    <td className="px-4 py-3 text-sm">
+                paginatedData.map((row, idx) => (
+                  <tr key={row.NAMA_DESA + idx} className="border-b border-gray-300 hover:bg-gray-50 transition-colors">
+                    <td className="py-3 px-3 text-center text-black font-medium text-xs sm:text-sm">{startIndex + idx + 1}</td>
+                    <td className="py-3 px-3 text-black text-xs sm:text-sm">{row.NAMA_KAB}</td>
+                    <td className="py-3 px-3 text-black text-xs sm:text-sm">{row.NAMA_KEC}</td>
+                    <td className="py-3 px-3 text-black text-xs sm:text-sm">{row.NAMA_DESA}</td>
+                    <td className="py-3 px-3 text-center text-black text-xs sm:text-sm">{row.jumlah_bts}</td>
+                    <td className="py-3 px-3 text-center text-black text-xs sm:text-sm">{row.jumlah_operator}</td>
+                    <td className="py-3 px-3 text-center text-black text-xs sm:text-sm">{row.sinyal_telepon}%</td>
+                    <td className="py-3 px-3 text-center text-black text-xs sm:text-sm">{row.sinyal_internet}%</td>
+                    <td className="py-3 px-3 text-center text-black text-xs sm:text-sm">{row.ada_warnet}</td>
+                    <td className="py-3 px-3 text-center text-black text-xs sm:text-sm">{row.komputer_desa}</td>
+                    <td className="py-3 px-3 text-center text-black text-xs sm:text-sm">{row.internet_kantordesa}</td>
+                    <td className="py-3 px-3">
                       <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                          item.cluster === 0
+                        className={`inline-block px-3 py-4 rounded-full text-xs font-medium ${
+                          row.cluster === 0
                             ? "bg-green-900 text-green-200"
-                            : item.cluster === 1
-                            ? "bg-yellow-900 text-yellow-200"
-                            : "bg-red-900 text-red-200"
+                            : row.cluster === 1
+                              ? "bg-yellow-900 text-yellow-200"
+                              : "bg-red-900 text-red-200"
                         }`}
                       >
-                        {item.label}
+                        {row.label}
                       </span>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={12} className="px-4 py-6 text-center text-gray-500">
+                  <td colSpan={12} className="py-4 px-3 text-center text-gray-500 text-xs sm:text-sm">
                     Tidak ada data ditemukan
                   </td>
                 </tr>
@@ -877,20 +1002,19 @@ const mapMarkers = useMemo(() => {
           </table>
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-6 pt-6 border-t border-[#c9ece7]">
-          <div className="text-black text-sm">
-            Menampilkan {paginatedData.length > 0 ? startIndex + 1 : 0} -{" "}
-            {Math.min(endIndex, tableData.length)} dari {tableData.length.toLocaleString()} data
+        <div className="mt-4 pt-4 border-t border-[#c9ece7] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="text-xs sm:text-sm text-black">
+            Menampilkan {paginatedData.length > 0 ? startIndex + 1 : 0} hingga{" "}
+            {Math.min(endIndex, tableData.length)} dari {tableData.length} data
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="px-4 py-2 border border-[#c9ece7] rounded-lg text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+              className="px-3 py-1 sm:px-3 sm:py-2 border border-[#c9ece7] rounded text-xs sm:text-sm text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
             >
               Sebelumnya
             </button>
-
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(5, tableTotalPages) }, (_, i) => {
                 let pageNum
@@ -907,7 +1031,7 @@ const mapMarkers = useMemo(() => {
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`px-3 py-2 rounded-lg text-sm ${
+                    className={`px-2 py-1 sm:px-3 sm:py-2 rounded text-xs sm:text-sm ${
                       currentPage === pageNum
                         ? "bg-green-600 text-white"
                         : "border border-gray-300 text-black hover:bg-gray-100"
@@ -918,11 +1042,10 @@ const mapMarkers = useMemo(() => {
                 )
               })}
             </div>
-
             <button
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, tableTotalPages))}
+              onClick={() => setCurrentPage(Math.min(tableTotalPages, currentPage + 1))}
               disabled={currentPage === tableTotalPages}
-              className="px-4 py-2 border border-[#c9ece7] rounded-lg text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+              className="px-3 py-1 sm:px-3 sm:py-2 border border-[#c9ece7] rounded text-xs sm:text-sm text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
             >
               Selanjutnya
             </button>
