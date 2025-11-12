@@ -19,6 +19,7 @@ import {
 import dynamic from "next/dynamic"
 
 import { useChatbotContext } from "@/context/ChatbotContext"
+import { supabase } from "@/lib/supabaseClient"
 
 interface HealthData {
   NAMA_KAB: string
@@ -93,20 +94,25 @@ export default function KeseshatanPage() {
     setSelectedDesa("")
   }, [selectedKec, selectedKab, data])
 
+  // Fetch data
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const response = await fetch("http://localhost:8000/api/data_cluster/cluster_kesehatan")
-        const result = await response.json()
-        setData(result)
-      } catch (error) {
-        console.error("Error fetching health ", error)
-      } finally {
-        setLoading(false)
+      // Gunakan klien yang sudah diimpor
+      const { data, error } = await supabase
+        .from('cluster_kesehatan') // Ganti nama tabel sesuai kebutuhan
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching data:', error);
+        setData([]);
+      } else {
+        setData(data);
       }
-    }
-    fetchData()
-  }, [])
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
 
   // === DATA DINAMIS UNTUK SEMUA KOMPONEN ===
   const activeData = useMemo(() => {

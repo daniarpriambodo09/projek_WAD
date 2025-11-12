@@ -18,6 +18,7 @@ import {
   Cell,
 } from "recharts"
 import dynamic from "next/dynamic"
+import { supabase } from "@/lib/supabaseClient"
 
 interface LingkunganData {
   IDDESA: string
@@ -306,19 +307,22 @@ export default function LingkunganPage() {
   // Fetch data
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const response = await fetch("http://localhost:8000/api/data_cluster/cluster_lingkungan")
-        const result = await response.json()
-        if (Array.isArray(result)) setData(result)
-      } catch (error) {
-        console.error("Error fetching ", error)
-        setData([])
-      } finally {
-        setLoading(false)
+      // Gunakan klien yang sudah diimpor
+      const { data, error } = await supabase
+        .from('cluster_lingkungan') // Ganti nama tabel sesuai kebutuhan
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching data:', error);
+        setData([]);
+      } else {
+        setData(data);
       }
-    }
-    fetchData()
-  }, [])
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
 
   // === DATA DINAMIS ===
   const activeData = useMemo(() => {

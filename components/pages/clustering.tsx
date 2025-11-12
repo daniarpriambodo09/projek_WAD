@@ -14,19 +14,20 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { supabase } from "@/lib/supabaseClient"; // <-- Pastikan path ini benar
 
-// Mapping endpoint API
-const API_ENDPOINTS: Record<string, string> = {
-  Tipologi: "http://localhost:8000/api/data_cluster/cluster_tipologi",
-  Infrastruktur: "http://localhost:8000/api/data_cluster/cluster_infrastruktur",
-  Ekonomi: "http://localhost:8000/api/data_cluster/cluster_ekonomi",
-  Kesehatan: "http://localhost:8000/api/data_cluster/cluster_kesehatan",
-  Digital: "http://localhost:8000/api/data_cluster/cluster_digital",
-  Pendidikan: "http://localhost:8000/api/data_cluster/cluster_pendidikan",
-  Lingkungan: "http://localhost:8000/api/data_cluster/cluster_lingkungan",
+// Mapping nama tabel di Supabase
+const TABLE_NAMES: Record<string, string> = {
+  Tipologi: "cluster_tipologi",
+  Infrastruktur: "cluster_infrastruktur",
+  Ekonomi: "cluster_ekonomi",
+  Kesehatan: "cluster_kesehatan",
+  Digital: "cluster_digital",
+  Pendidikan: "cluster_pendidikan",
+  Lingkungan: "cluster_lingkungan",
 };
 
-// Mapping label sumbu X dan Y berdasarkan topik
+// Mapping label sumbu X dan Y
 const AXIS_LABELS: Record<string, { x: string; y: string }> = {
   Tipologi: { x: "Komponen 1", y: "Komponen 2" },
   Infrastruktur: { x: "Akses Jalan Baik (%)", y: "Akses Air Bersih (%)" },
@@ -40,7 +41,8 @@ const AXIS_LABELS: Record<string, { x: string; y: string }> = {
 type ClusterPoint = {
   x: number;
   y: number;
-  cluster: string;
+  clusterId: number;
+  clusterLabel: string;
   nama_desa: string;
   kecamatan: string;
   kabupaten: string;
@@ -49,6 +51,7 @@ type ClusterPoint = {
 type ClusterStats = {
   name: string;
   value: number;
+  label: string;
 };
 
 export default function Clustering() {
@@ -64,71 +67,88 @@ export default function Clustering() {
   ];
 
   const [chartData, setChartData] = useState<ClusterPoint[]>([]);
-  const [uniqueClusters, setUniqueClusters] = useState<string[]>([]);
+  const [uniqueClusters, setUniqueClusters] = useState<number[]>([]);
   const [clusterStats, setClusterStats] = useState<ClusterStats[]>([]);
+  const [clusterColors, setClusterColors] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Warna untuk setiap cluster
-  const clusterColors: Record<string, string> = {
-    "Desa Maju dan Terintegrasi": "#12372a",
-    "Desa Menengah - Perlu Penyegaran Sanitasi & Akses": "#436850",
-    "Desa Tertinggal Prioritas": "#adbc9f",
-    "Digital Lengkap": "#0d47a1",
-    "Digital Administrasi (Tanpa Akses Publik)": "#2e7d32",
-    "Digitalisasi Rendah": "#ad1457",
-    "Desa Pendidikan Lengkap": "#0d47a1",
-    "Desa Pendidikan Dasar Terbatas": "#546e7a",
-    "Desa Krisis Gizi": "#b71c1c",
-    "Desa Miskin Ekstrem": "#e53935",
-    "Desa Stabil": "#4caf50",
-    "Lingkungan Sedang": "#66bb6a",
-    "Lingkungan Terbaik": "#2e7d32",
-    "Lingkungan Ideal (Tanpa Masalah)": "#388e3c",
-    "Desa Mandiri Program": "#4caf50",
-    "Desa Subsisten Pertanian": "#ff9800",
-    "Desa Maju": "#4caf50",
-    "Unknown": "#9e9e9e",
-  };
+  const baseColors = [
+    "#12372a", // cluster 0
+    "#ad1457", // cluster 1
+    "#b71c1c", // cluster 2
+    "#4caf50", // cluster 3
+    "#2e7d32", // cluster 4
+    "#0d47a1", // cluster 5
+    "#ff9800", // cluster 6
+    "#9e9e9e", // cluster 7
+    "#7b1fa2",
+    "#0097a7",
+  ];
 
-  // Fetch data dari API
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(API_ENDPOINTS[selectedCluster]);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const rawData: any[] = await res.json();
+        const tableName = TABLE_NAMES[selectedCluster];
+        if (!tableName) throw new Error("Tabel tidak ditemukan");
 
-        if (!Array.isArray(rawData) || rawData.length === 0) {
+        // Ambil SEMUA data dari Supabase (untuk tabel >1000 baris)
+        let allData: any[] = [];
+        const limit = 1000;
+        let offset = 0;
+
+        while (true) {
+          const { data, error } = await supabase
+            .from(tableName)
+            .select('*')
+            .range(offset, offset + limit - 1);
+
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+
+          allData.push(...data);
+          if (data.length < limit) break;
+          offset += limit;
+        }
+
+        if (allData.length === 0) {
           setChartData([]);
           setUniqueClusters([]);
           setClusterStats([]);
+          setClusterColors({});
           setLoading(false);
           return;
         }
 
-        // Map data ke format chart
-        const mapped = rawData
-          .filter((row) => Array.isArray(row) || typeof row === "object")
+        // Mapping data dari Supabase ke format ClusterPoint
+        // Sesuaikan kolom berdasarkan struktur tabel Anda di Supabase
+        const mapped = allData
           .map((row) => {
-            const arr = Array.isArray(row) ? row : Object.values(row);
-            if (arr.length < 18) return null;
+            // Ambil X dan Y berdasarkan indeks atau nama kolom
+            // Kita asumsikan kolom ke-16 dan 17 (indeks 15, 16) adalah X dan Y
+            // atau gunakan nama kolom jika lebih spesifik
+            const xVal = parseFloat(row["komponen_1"] || row["akses_jalan_baik"] || row["pdrb_per_kapita"] || row["cakupan_puskesmas"] || row["akses_internet_desa"] || row["skor_infrastruktur_pendidikan"] || row["skor_lingkungan"] || row[15] || 0);
+            const yVal = parseFloat(row["komponen_2"] || row["akses_air_bersih"] || row["indeks_ekonomi"] || row["stunting_rate"] || row["tingkat_digitalisasi"] || row["skor_kualitas_pendidikan"] || row["akses_sanitasi"] || row[16] || 0);
 
-            const xVal = parseFloat(arr[15]?.toString() || "0");
-            const yVal = parseFloat(arr[16]?.toString() || "0");
-            const clusterLabel = (arr[arr.length - 1]?.toString() || "Unknown").trim();
-            const namaDesa = arr[3]?.toString() || "Desa";
-            const kecamatan = arr[2]?.toString() || "Kecamatan";
-            const kabupaten = arr[1]?.toString() || "Kabupaten";
+            // Kolom 'cluster' (numerik) sebagai identitas
+            const clusterId = parseInt(row["cluster"], 10);
 
-            if (isNaN(xVal) || isNaN(yVal)) return null;
+            // Kolom 'label' sebagai deskripsi
+            const clusterLabel = row["final_label"] || row["label_infrastruktur"] || row["kategori_ekonomi"] || row["label"] || "Unknown";
+
+            const namaDesa = row["NAMA_DESA"] || "Desa";
+            const kecamatan = row["NAMA_KEC"] || "Kecamatan";
+            const kabupaten = row["NAMA_KAB"] || "Kabupaten";
+
+            if (isNaN(xVal) || isNaN(yVal) || isNaN(clusterId)) return null;
 
             return {
               x: xVal,
               y: yVal,
-              cluster: clusterLabel,
+              clusterId,
+              clusterLabel,
               nama_desa: namaDesa,
               kecamatan,
               kabupaten,
@@ -136,21 +156,35 @@ export default function Clustering() {
           })
           .filter((item): item is ClusterPoint => item !== null);
 
-        const clusters = [...new Set(mapped.map((d) => d.cluster))];
-        const stats = clusters.map((name) => ({
-          name,
-          value: mapped.filter((d) => d.cluster === name).length,
-        }));
+        const clusterIds = [...new Set(mapped.map((d) => d.clusterId))].sort((a, b) => a - b);
+
+        // Mapping warna berdasarkan cluster ID (numerik)
+        const colors: Record<number, string> = {};
+        clusterIds.forEach((id) => {
+          colors[id] = baseColors[id % baseColors.length];
+        });
+
+        // Statistik per cluster
+        const stats = clusterIds.map((id) => {
+          const items = mapped.filter((d) => d.clusterId === id);
+          return {
+            name: `Cluster ${id}`,
+            value: items.length,
+            label: items[0]?.clusterLabel || `Cluster ${id}`,
+          };
+        });
 
         setChartData(mapped);
-        setUniqueClusters(clusters);
+        setUniqueClusters(clusterIds);
         setClusterStats(stats);
+        setClusterColors(colors);
       } catch (err) {
-        console.error("Gagal memuat data klaster:", err);
-        setError("Gagal memuat data. Pastikan file CSV tersedia dan tidak kosong.");
+        console.error("Gagal memuat data klaster dari Supabase:", err);
+        setError("Gagal memuat data dari Supabase.");
         setChartData([]);
         setUniqueClusters([]);
         setClusterStats([]);
+        setClusterColors({});
       } finally {
         setLoading(false);
       }
@@ -158,18 +192,6 @@ export default function Clustering() {
 
     fetchData();
   }, [selectedCluster]);
-
-  // Deskripsi otomatis untuk setiap klaster
-  const getClusterDescription = (name: string) => {
-    if (name.includes("Maju")) return "Desa dengan infrastruktur, ekonomi, dan pelayanan publik yang maju.";
-    if (name.includes("Tertinggal")) return "Desa dengan kebutuhan pengembangan prioritas.";
-    if (name.includes("Krisis Gizi")) return "Desa dengan tingkat stunting tinggi dan akses layanan kesehatan terbatas.";
-    if (name.includes("Pendidikan Lengkap")) return "Desa memiliki akses lengkap ke sekolah dasar hingga menengah.";
-    if (name.includes("Digital Lengkap")) return "Desa telah menerapkan sistem digital secara menyeluruh.";
-    if (name.includes("Lingkungan Terbaik")) return "Desa dengan kualitas lingkungan sangat baik.";
-    if (name.includes("Subsisten")) return "Desa dengan basis ekonomi pertanian subsisten.";
-    return "Deskripsi otomatis berdasarkan data.";
-  };
 
   const { x: xLabel, y: yLabel } = AXIS_LABELS[selectedCluster] || {
     x: "Variabel X",
@@ -187,16 +209,13 @@ export default function Clustering() {
             Analisis pengelompokan data desa berdasarkan aspek {selectedCluster.toLowerCase()}
           </p>
         </div>
-
         <div className="flex gap-3 flex-wrap justify-end">
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-muted-foreground">
-              Filter Clustering
-            </label>
+            <label className="text-xs font-bold text-muted-foreground">Filter Clustering</label>
             <select
               value={selectedCluster}
               onChange={(e) => setSelectedCluster(e.target.value)}
-              className="px-3 py-2 bg-white border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+              className="px-3 py-2 bg-white border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             >
               {clusterFilterList.map((cls) => (
                 <option key={cls} value={cls}>
@@ -212,15 +231,11 @@ export default function Clustering() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6">
           <p className="text-black text-sm">Jumlah Cluster</p>
-          <p className="text-3xl font-bold text-black mt-2">
-            {uniqueClusters.length || "-"}
-          </p>
+          <p className="text-3xl font-bold text-black mt-2">{uniqueClusters.length || "-"}</p>
         </div>
         <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6">
           <p className="text-black text-sm">Jumlah Desa</p>
-          <p className="text-3xl font-bold text-black mt-2">
-            {chartData.length || "-"}
-          </p>
+          <p className="text-3xl font-bold text-black mt-2">{chartData.length || "-"}</p>
         </div>
         <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6">
           <p className="text-black text-sm">Status Data</p>
@@ -232,7 +247,7 @@ export default function Clustering() {
           <p className="text-black text-sm">Klaster Terbesar</p>
           <p className="text-3xl font-bold text-black mt-2">
             {clusterStats.length > 0
-              ? clusterStats.reduce((a, b) => (a.value > b.value ? a : b)).name
+              ? `Cluster ${clusterStats.reduce((a, b) => (a.value > b.value ? a : b)).name.split(" ")[1]}`
               : "-"}
           </p>
         </div>
@@ -251,9 +266,7 @@ export default function Clustering() {
           {loading ? (
             <p className="text-center py-10">Memuat data...</p>
           ) : chartData.length === 0 ? (
-            <p className="text-center py-10 text-gray-500">
-              Tidak ada data untuk klaster ini. Coba pilih topik lain.
-            </p>
+            <p className="text-center py-10 text-gray-500">Tidak ada data.</p>
           ) : (
             <ResponsiveContainer width="100%" height={400}>
               <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
@@ -285,12 +298,12 @@ export default function Clustering() {
                   }}
                 />
                 <Legend />
-                {uniqueClusters.map((cluster) => (
+                {uniqueClusters.map((clusterId) => (
                   <Scatter
-                    key={cluster}
-                    name={cluster}
-                    data={chartData.filter((d) => d.cluster === cluster)}
-                    fill={clusterColors[cluster] || "#757575"}
+                    key={clusterId}
+                    name={`Cluster ${clusterId}`}
+                    data={chartData.filter((d) => d.clusterId === clusterId)}
+                    fill={clusterColors[clusterId] || "#757575"}
                   />
                 ))}
               </ScatterChart>
@@ -298,7 +311,7 @@ export default function Clustering() {
           )}
         </div>
 
-        {/* Pie Chart Distribusi Klaster */}
+        {/* Pie Chart */}
         <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6">
           <h2 className="text-lg font-semibold text-black mb-4">Distribusi Desa per Klaster</h2>
           {clusterStats.length > 0 ? (
@@ -310,45 +323,47 @@ export default function Clustering() {
                   cy="50%"
                   labelLine={false}
                   outerRadius={80}
-                  fill="#8884d8"
                   dataKey="value"
                   label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                 >
                   {clusterStats.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={clusterColors[entry.name] || "#9e9e9e"} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={clusterColors[parseInt(entry.name.split(" ")[1])]}
+                    />
                   ))}
                 </Pie>
                 <Tooltip formatter={(value) => [value, "Jumlah Desa"]} />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-center py-10 text-gray-500">Tidak ada data untuk ditampilkan.</p>
+            <p className="text-center py-10 text-gray-500">Tidak ada data.</p>
           )}
         </div>
       </div>
 
       {/* Karakteristik Klaster */}
-      {uniqueClusters.length > 0 && (
+      {clusterStats.length > 0 && (
         <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6">
           <h2 className="text-lg font-semibold text-black mb-4">Karakteristik Klaster</h2>
           <div className="space-y-4">
-            {uniqueClusters.map((cluster, idx) => {
-              const count = chartData.filter((d) => d.cluster === cluster).length;
+            {clusterStats.map((stat, idx) => {
+              const clusterId = parseInt(stat.name.split(" ")[1]);
+              const count = stat.value;
               const percentage = ((count / chartData.length) * 100).toFixed(2);
-
               return (
                 <div
                   key={idx}
                   className="bg-gray-100 rounded-lg p-4 border-l-4"
-                  style={{ borderColor: clusterColors[cluster] || "#757575" }}
+                  style={{ borderColor: clusterColors[clusterId] || "#757575" }}
                 >
                   <div className="flex justify-between items-start">
-                    <p className="font-semibold text-black">{cluster}</p>
+                    <p className="font-semibold text-black">{stat.name}</p>
                     <p className="text-sm text-gray-600">
                       {count} desa ({percentage}%)
                     </p>
                   </div>
-                  <p className="text-gray-700 text-sm mt-1">{getClusterDescription(cluster)}</p>
+                  <p className="text-gray-700 text-sm mt-1">{stat.label}</p>
                 </div>
               );
             })}

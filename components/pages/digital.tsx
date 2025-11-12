@@ -20,6 +20,7 @@ import {
 import dynamic from "next/dynamic"
 
 import { useChatbotContext } from "@/context/ChatbotContext"
+import { supabase } from "@/lib/supabaseClient"
 
 interface DigitalData {
   NAMA_KAB: string
@@ -379,20 +380,25 @@ export default function DigitalPage() {
     setSelectedDesa("")
   }, [selectedKec, selectedKab, data])
 
+  // Fetch data
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const response = await fetch("http://localhost:8000/api/data_cluster/cluster_digital")
-        const result = await response.json()
-        setData(result)
-      } catch (error) {
-        console.error("Error fetching digital ", error)
-      } finally {
-        setLoading(false)
+      // Gunakan klien yang sudah diimpor
+      const { data, error } = await supabase
+        .from('cluster_digital') // Ganti nama tabel sesuai kebutuhan
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching data:', error);
+        setData([]);
+      } else {
+        setData(data);
       }
-    }
-    fetchData()
-  }, [])
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
 
   // === DATA DINAMIS ===
   const activeData = useMemo(() => {

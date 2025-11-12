@@ -16,6 +16,8 @@ import {
 } from "recharts"
 import dynamic from "next/dynamic"
 import { useChatbotContext } from '@/context/ChatbotContext';
+import { supabase } from "@/lib/supabaseClient";
+
 
 
 interface VillageData {
@@ -101,19 +103,22 @@ export default function Infrastruktur() {
   // Fetch data
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const response = await fetch("http://localhost:8000/api/data_cluster/cluster_infrastruktur")
-        const data = await response.json()
-        setVillageData(data)
-      } catch (error) {
-        console.log("[v0] Error fetching ", error)
-        setVillageData([])
-      } finally {
-        setLoading(false)
+      // Gunakan klien yang sudah diimpor
+      const { data, error } = await supabase
+        .from('cluster_infrastruktur') // Ganti nama tabel sesuai kebutuhan
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching data:', error);
+        setVillageData([]);
+      } else {
+        setVillageData(data);
       }
-    }
-    fetchData()
-  }, [])
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
 
   // === DATA DINAMIS ===
   const activeData = useMemo(() => {

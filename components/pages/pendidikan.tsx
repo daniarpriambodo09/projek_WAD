@@ -16,6 +16,8 @@ import {
   Cell,
 } from "recharts"
 
+import { supabase } from "@/lib/supabaseClient";
+
 interface EducationData {
   NAMA_KAB: string
   NAMA_KEC: string
@@ -313,25 +315,23 @@ export default function PendidikanPage() {
   }, [selectedKec, selectedKab, data])
 
   useEffect(() => {
-    const controller = new AbortController()
-    const fetchData = async () => {
-      try {
-        const response = await fetch("http://localhost:8000/api/data_cluster/cluster_pendidikan", {
-          signal: controller.signal,
-        })
-        const result = await response.json()
-        if (Array.isArray(result)) setData(result)
-      } catch (error) {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          console.error("Error fetching education ", error)
+      const fetchData = async () => {
+        // Gunakan klien yang sudah diimpor
+        const { data, error } = await supabase
+          .from('cluster_pendidikan') // Ganti nama tabel sesuai kebutuhan
+          .select('*');
+  
+        if (error) {
+          console.error('Error fetching data:', error);
+          setData([]);
+        } else {
+          setData(data);
         }
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
-    return () => controller.abort()
-  }, [])
+        setLoading(false);
+      };
+  
+      fetchData();
+    }, []);
 
   // === DATA DINAMIS ===
   const activeData = useMemo(() => {

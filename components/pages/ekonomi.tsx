@@ -16,6 +16,7 @@ import {
   Cell,
 } from "recharts"
 import { useChatbotContext } from '@/context/ChatbotContext';
+import { supabase } from "@/lib/supabaseClient";
 
 interface EkonomiData {
   NAMA_KAB: string
@@ -321,25 +322,23 @@ export default function EkonomiPage() {
 
   // Fetch data
   useEffect(() => {
-    const controller = new AbortController()
     const fetchData = async () => {
-      try {
-        const response = await fetch("http://localhost:8000/api/data_cluster/cluster_ekonomi", {
-          signal: controller.signal,
-        })
-        const result = await response.json()
-        if (Array.isArray(result)) setData(result)
-      } catch (error) {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          console.error("Error fetching data:", error)
-        }
-      } finally {
-        setLoading(false)
+      // Gunakan klien yang sudah diimpor
+      const { data, error } = await supabase
+        .from('cluster_ekonomi') // Ganti nama tabel sesuai kebutuhan
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching data:', error);
+        setData([]);
+      } else {
+        setData(data);
       }
-    }
-    fetchData()
-    return () => controller.abort()
-  }, [])
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
 
   // === DATA DINAMIS ===
   const activeData = useMemo(() => {
@@ -579,7 +578,6 @@ export default function EkonomiPage() {
       { name: "Pertanian", avg: avg("sektor_pertanian") },
       { name: "Perdagangan", avg: avg("sektor_perdagangan") },
       { name: "Industri", avg: avg("sektor_industri") },
-      { name: "Lainnya", avg: avg("sektor_lainnya") },
     ]
   }, [activeData])
 

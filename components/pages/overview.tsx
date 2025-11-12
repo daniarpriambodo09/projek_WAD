@@ -19,6 +19,7 @@ import {
   Cell,
 } from "recharts"
 import { useChatbotContext } from "@/context/ChatbotContext"
+import { supabase } from "@/lib/supabaseClient";
 
 interface ClusterTipologiData {
   IDDESA: string
@@ -138,23 +139,25 @@ export default function OverviewPage() {
     setSelectedDesa("")
   }, [selectedKec, selectedKab, data])
 
-  // === FETCH DATA DARI API ===
+  // Fetch data
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const response = await fetch("http://localhost:8000/api/data_cluster/cluster_tipologi")
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-        const result: ClusterTipologiData[] = await response.json()
-        setData(result)
-      } catch (error) {
-        console.error("Error fetching tipologi", error)
-        setData([])
-      } finally {
-        setLoading(false)
+      // Gunakan klien yang sudah diimpor
+      const { data, error } = await supabase
+        .from('cluster_tipologi') // Ganti nama tabel sesuai kebutuhan
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching data:', error);
+        setData([]);
+      } else {
+        setData(data);
       }
-    }
-    fetchData()
-  }, [])
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
 
   // === DATA DINAMIS ===
   const activeData = useMemo(() => {

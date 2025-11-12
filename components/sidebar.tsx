@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { Label } from "recharts"
 
 interface SidebarProps {
   activePage: string
@@ -13,10 +12,14 @@ interface SidebarProps {
 export default function Sidebar({ activePage, setActivePage, isOpen, setIsOpen }: SidebarProps) {
   const [expandedMenu, setExpandedMenu] = useState<string | null>("analisis")
 
+  // --- ⭐️ ATUR UKURAN IKON DI SINI ⭐️ ---
+  // Ubah nilai ini untuk mengatur ukuran semua ikon menu sekaligus
+  const iconSize = "w-12 h-12" // Contoh: "w-5 h-5", "w-7 h-7", "w-8 h-8"
+
   const menuItems = [
     {
       label: "TIPOLOGI DAERAH",
-      icon: "📊",
+      icon: "/logo/HOME.png",
       submenu: [
         { label: "Overview", id: "overview" },
         { label: "Infrastruktur", id: "infrastruktur" },
@@ -29,26 +32,26 @@ export default function Sidebar({ activePage, setActivePage, isOpen, setIsOpen }
     },
     {
       label: "MACHINE LEARNING",
-      icon: "🤖",
+      icon: "/logo/Machine Learning.png",
       submenu: [
         { label: "Clustering", id: "clustering" },
       ],
     },
     {
       label: "METODOLOGI",
-      icon: "📚",
+      icon: "/logo/Metodelogi.png",
       submenu: [{ label: "Metodologi", id: "metodologi" }],
     },
     {
       label: "INFORMATION",
-      icon: "💻",
+      icon: "/logo/Information_about.png",
       submenu: [
         { label: "ABOUT US", id: "about-us" },
         { label: "Data Mentah", id: "data-mentah" },
       ],
     },
   ]
-  
+
   return (
     <aside
       className={`${
@@ -58,17 +61,15 @@ export default function Sidebar({ activePage, setActivePage, isOpen, setIsOpen }
       {/* Header dengan Logo */}
       <div className="p-4 border-b border-gray-700 flex items-center justify-between">
         {isOpen ? (
-          // Sidebar terbuka: logo + teks
           <div className="flex items-center gap-2">
             <img
-              src="/logo/siDesa2.png"
+              src="/logo/LOGO.png"
               alt="Logo siDesa"
-              className="w-11 h-11 object-contain"
+              className="w-12 h-12 object-contain"
             />
-            <h1 className="text-xl font-bold text-blue-400">siDesa</h1>
+            <h1 className="text-xl font-bold text-[#F1F5F9]">SiDesa</h1>
           </div>
         ) : (
-          // Sidebar tertutup: hanya logo di tengah
           <div></div>
         )}
         <button
@@ -86,11 +87,22 @@ export default function Sidebar({ activePage, setActivePage, isOpen, setIsOpen }
           <div key={menu.label}>
             <button
               onClick={() => setExpandedMenu(expandedMenu === menu.label ? null : menu.label)}
-              className="w-full flex items-center justify-between p-3 hover:bg-gray-700 rounded transition-colors text-left"
+              className={`w-full flex items-center justify-between p-3 hover:bg-gray-700 rounded transition-colors text-left ${
+                !isOpen ? 'p-2' : '' // 👈 Kurangi padding saat tertutup
+              }`}
             >
               <span className="flex items-center gap-3">
-                <span className="text-xl">{menu.icon}</span>
-                {isOpen && <span className="text-sm font-semibold text-gray-200">{menu.label}</span>}
+                {/* --- MODIFIKASI UKURAN UNTUK SIDEBAR TERBUKA & TERTUTUP --- */}
+                <img
+                  src={menu.icon}
+                  alt={`${menu.label} icon`}
+                  className={`${
+                    isOpen 
+                      ? 'w-10 h-10'           // Saat terbuka: ukuran besar
+                      : 'w-8 h-8 object-cover' // Saat tertutup: ukuran sedang + object-cover agar fill container
+                  }`}
+                />
+                {isOpen && <span className="text-sm font-bold text-gray-200">{menu.label}</span>}
               </span>
               {isOpen && (
                 <span className="text-xs text-gray-400">
@@ -130,8 +142,8 @@ export default function Sidebar({ activePage, setActivePage, isOpen, setIsOpen }
           />
         </div>
       )}
-      {/* Footer (hanya muncul saat terbuka) */}
 
+      {/* Footer (hanya muncul saat terbuka) */}
       {isOpen && (
         <div className="p-4 border-t border-gray-700 text-xs text-gray-400">
           <p>Dashboard Analitik</p>
