@@ -45,14 +45,14 @@ interface DigitalData {
 const MapComponent = dynamic(() => import("./MapComponent"), {
   ssr: false,
   loading: () => (
-    <div className="h-64 sm:h-80 bg-white/80 backdrop-blur-sm rounded-lg animate-pulse" />
+    <div className="h-56 sm:h-80 md:h-96 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+      <p className="text-gray-500 text-sm">Memuat peta...</p>
+    </div>
   ),
 })
 
-const COLORS = ["#324D3E", "#728A6E", "#8EA48B", "#B3C8A1", "#C9D9C3"]
-const ITEMS_PER_PAGE = 5 // Kurangi untuk mobile
+const COLORS = ["#324D3E", "#5A7A60", "#728A6E", "#8EA48B", "#B3C8A1", "#9AB59F"]
 
-// Fungsi bantu untuk wrap teks (tetap dipakai)
 const wrapText = (text: string, maxCharsPerLine = 18) => {
   const words = text.split(" ");
   const lines: string[] = [];
@@ -75,11 +75,11 @@ const wrapText = (text: string, maxCharsPerLine = 18) => {
 const renderCustomLabel = (props: any) => {
   const { cx, cy, midAngle, outerRadius, percent, name } = props;
   const RADIAN = Math.PI / 180;
-  const offset = 30;
+  const offset = 25;
   const radius = outerRadius + offset;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  const lines = wrapText(String(name), 20);
+  const lines = wrapText(String(name), 25);
   const anchor = x > cx ? "start" : "end";
 
   return (
@@ -92,11 +92,11 @@ const renderCustomLabel = (props: any) => {
       fontSize={12}
     >
       {lines.map((line: string, i: number) => (
-        <tspan key={i} x={x} dy={i === 0 ? 0 : "1.1em"}>
+        <tspan key={i} x={x} dy={i === 0 ? 0 : "1em"}>
           {line}
         </tspan>
       ))}
-      <tspan x={x} dy="1.1em">
+      <tspan x={x} dy="1em" fontWeight="bold">
         {`${(percent * 100).toFixed(0)}%`}
       </tspan>
     </text>
@@ -108,6 +108,7 @@ export default function DigitalPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
+  const [showFilters, setShowFilters] = useState(false)
 
   // Filter State
   const [selectedKab, setSelectedKab] = useState<string>("")
@@ -387,9 +388,8 @@ export default function DigitalPage() {
   // Fetch data
   useEffect(() => {
     const fetchData = async () => {
-      // Gunakan klien yang sudah diimpor
       const { data, error } = await supabase
-        .from('cluster_digital') // Ganti nama tabel sesuai kebutuhan
+        .from('cluster_digital')
         .select('*');
 
       if (error) {
@@ -434,108 +434,99 @@ export default function DigitalPage() {
   }, [data, selectedKab, selectedKec, searchTerm])
 
   // === PAGINASI TABEL ===
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-  const endIndex = startIndex + ITEMS_PER_PAGE
+  const startIndex = (currentPage - 1) * 5 // ITEMS_PER_PAGE
+  const endIndex = startIndex + 5
   const paginatedData = useMemo(() => tableData.slice(startIndex, endIndex), [tableData, startIndex, endIndex])
-  const tableTotalPages = Math.ceil(tableData.length / ITEMS_PER_PAGE)
+  const tableTotalPages = Math.ceil(tableData.length / 5)
 
   // === MAP MARKERS: HANYA SAMPAI LEVEL KECAMATAN (filter desa diabaikan untuk peta) ===
-const mapMarkers = useMemo(() => {
-  if (!data.length) return []
+  const mapMarkers = useMemo(() => {
+    if (!data.length) return []
 
-  // Helper: cek apakah koordinat valid
-  const isValidCoord = (lat: number, lng: number) => {
-    return (
-      lat !== 0 &&
-      lng !== 0 &&
-      !isNaN(lat) &&
-      !isNaN(lng) &&
-      lat >= -11 && lat <= -6 &&     // rentang Jawa Timur
-      lng >= 110 && lng <= 115
-    )
-  }
+    // Helper: cek apakah koordinat valid
+    const isValidCoord = (lat: number, lng: number) => {
+      return (
+        lat !== 0 &&
+        lng !== 0 &&
+        !isNaN(lat) &&
+        !isNaN(lng) &&
+        lat >= -11 && lat <= -6 &&     // rentang Jawa Timur
+        lng >= 110 && lng <= 115
+      )
+    }
 
-  // Jika tidak ada filter → tampilkan kabupaten
-  if (!selectedKab) {
-    const kabMap = new Map()
-    data.forEach(item => {
-      if (isValidCoord(item.Latitude, item.Longitude) && !kabMap.has(item.NAMA_KAB)) {
-        kabMap.set(item.NAMA_KAB, {
-          lat: item.Latitude,
-          lng: item.Longitude,
-          name: item.NAMA_KAB,
-          cluster: item.cluster,
-          label: item.label,
-        })
-      }
-    })
-    return Array.from(kabMap.values()).map(m => ({
-      name: m.name,
-      position: [m.lat, m.lng] as [number, number],
-      kabupaten: m.name,
-      kecamatan: "",
-      cluster: m.cluster,
-      label: m.label,
-    }))
-  }
-
-  // Jika hanya kabupaten dipilih → tampilkan kecamatan
-  if (selectedKab && !selectedKec) {
-    const kecMap = new Map()
-    data
-      .filter(d => d.NAMA_KAB === selectedKab)
-      .forEach(item => {
-        if (isValidCoord(item.Latitude, item.Longitude)) {
-          const key = `${item.NAMA_KAB}-${item.NAMA_KEC}`
-          if (!kecMap.has(key)) {
-            kecMap.set(key, {
-              lat: item.Latitude,
-              lng: item.Longitude,
-              name: item.NAMA_KEC,
-              kabupaten: item.NAMA_KAB,
-              cluster: item.cluster,
-              label: item.label,
-            })
-          }
+    // Jika tidak ada filter → tampilkan kabupaten
+    if (!selectedKab) {
+      const kabMap = new Map()
+      data.forEach(item => {
+        if (isValidCoord(item.Latitude, item.Longitude) && !kabMap.has(item.NAMA_KAB)) {
+          kabMap.set(item.NAMA_KAB, {
+            lat: item.Latitude,
+            lng: item.Longitude,
+            name: item.NAMA_KAB,
+            cluster: item.cluster,
+            label: item.label,
+          })
         }
       })
-    return Array.from(kecMap.values()).map(m => ({
-      name: m.name,
-      position: [m.lat, m.lng] as [number, number],
-      kabupaten: m.kabupaten,
-      kecamatan: m.name,
-      cluster: m.cluster,
-      label: m.label,
-    }))
-  }
-
-  // Jika kabupaten + kecamatan dipilih → tampilkan SEMUA desa dalam kecamatan itu
-  // (abaikan selectedDesa!)
-  if (selectedKab && selectedKec) {
-    return data
-      .filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec && isValidCoord(d.Latitude, d.Longitude))
-      .map(m => ({
-        name: m.NAMA_DESA,
-        position: [m.Latitude, m.Longitude] as [number, number],
-        kabupaten: m.NAMA_KAB,
-        kecamatan: m.NAMA_KEC,
+      return Array.from(kabMap.values()).map(m => ({
+        name: m.name,
+        position: [m.lat, m.lng] as [number, number],
+        kabupaten: m.name,
+        kecamatan: "",
         cluster: m.cluster,
         label: m.label,
       }))
-  }
+    }
 
-  // Fallback: tampilkan semua desa (seharusnya tidak terjadi)
-  return data
-    .filter(d => isValidCoord(d.Latitude, d.Longitude))
-    .map(m => ({
-      name: m.NAMA_DESA,
-      position: [m.Latitude, m.Longitude] as [number, number],
-      kabupaten: m.NAMA_KAB,
-      kecamatan: m.NAMA_KEC,
-      cluster: m.cluster,
-      label: m.label,
-    }))
-}, [data, selectedKab, selectedKec]) // ⚠️ JANGAN masukkan selectedDesa ke dependency array!
+    // Jika hanya kabupaten dipilih → tampilkan kecamatan
+    if (selectedKab && !selectedKec) {
+      const kecMap = new Map()
+      data
+        .filter(d => d.NAMA_KAB === selectedKab)
+        .forEach(item => {
+          if (isValidCoord(item.Latitude, item.Longitude)) {
+            const key = `${item.NAMA_KAB}-${item.NAMA_KEC}`
+            if (!kecMap.has(key)) {
+              kecMap.set(key, {
+                lat: item.Latitude,
+                lng: item.Longitude,
+                name: item.NAMA_KEC,
+                kabupaten: item.NAMA_KAB,
+                cluster: item.cluster,
+                label: item.label,
+              })
+            }
+          }
+        })
+      return Array.from(kecMap.values()).map(m => ({
+        name: m.name,
+        position: [m.lat, m.lng] as [number, number],
+        kabupaten: m.kabupaten,
+        kecamatan: m.name,
+        cluster: m.cluster,
+        label: m.label,
+      }))
+    }
+
+    // Jika kabupaten + kecamatan dipilih → tampilkan SEMUA desa dalam kecamatan itu
+    // (abaikan selectedDesa!)
+    if (selectedKab && selectedKec) {
+      return data
+        .filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec && isValidCoord(d.Latitude, d.Longitude))
+        .map(m => ({
+          name: m.NAMA_DESA,
+          position: [m.Latitude, m.Longitude] as [number, number],
+          kabupaten: m.NAMA_KAB,
+          kecamatan: m.NAMA_KEC,
+          cluster: m.cluster,
+          label: m.label,
+        }))
+    }
+
+    // Fallback: tampilkan semua desa (seharusnya tidak terjadi)
+    return []
+  }, [data, selectedKab, selectedKec]) // ⚠️ JANGAN masukkan selectedDesa ke dependency array!
 
   // === CHART DATA: Rata-rata Jumlah BTS dan Operator (dengan filter) ===
   const btsOperatorByKabupaten = useMemo(() => {
@@ -674,381 +665,335 @@ const mapMarkers = useMemo(() => {
   }, [activeData])
 
   if (loading) {
-    return <div className="p-4 sm:p-6 text-black">Loading...</div>
+    return (
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#324D3E] mx-auto mb-4"></div>
+          <p className="text-gray-600">Memuat data dari server...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-2 p-2 sm:p-2">
-      {/* STICKY HEADER */}
-      <div className="sticky top-0 z-50 backdrop-blur-sm border-b border-[#c9ece7] px-4 sm:px-6 py-4 -mx-4 sm:-mx-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-black mb-2">Analisis Digital Desa</h1>
-            <p className="text-sm sm:text-base text-gray-600">Data kluster transformasi digital masyarakat per desa</p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 flex-wrap justify-end">
-            <div className="flex flex-col gap-1 w-full sm:w-auto">
-              <label className="text-xs font-bold text-gray-600">Filter Kabupaten</label>
-              <select
-                value={selectedKab}
-                onChange={(e) => setSelectedKab(e.target.value)}
-                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
-              >
-                <option value="">Semua Kabupaten</option>
-                {[...new Set(data.map(d => d.NAMA_KAB))].sort().map(kab => (
-                  <option key={kab} value={kab}>{kab}</option>
-                ))}
-              </select>
+    <div className="min-h-screen from-gray-50 to-gray-100">
+      {/* STICKY HEADER - Mobile Optimized */}
+      <div className="sticky top-0 z-[999] backdrop-blur-sm shadow-sm border-b border-gray-200">
+        <div className="px-3 sm:px-5 py-3 sm:py-4">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-gray-900 truncate">
+                Analisis Digital Desa
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                Data kluster transformasi digital masyarakat per desa
+              </p>
             </div>
-
-            <div className="flex flex-col gap-1 w-full sm:w-auto">
-              <label className="text-xs font-bold text-gray-600">Filter Kecamatan</label>
-              <select
-                value={selectedKec}
-                onChange={(e) => setSelectedKec(e.target.value)}
-                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
-                disabled={!selectedKab}
-              >
-                <option value="">Semua Kecamatan</option>
-                {kecamatanOptions.map(kec => (
-                  <option key={kec} value={kec}>{kec}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1 w-full sm:w-auto">
-              <label className="text-xs font-bold text-gray-600">Filter Desa</label>
-              <select
-                value={selectedDesa}
-                onChange={(e) => setSelectedDesa(e.target.value)}
-                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
-                disabled={!selectedKec}
-              >
-                <option value="">Semua Desa</option>
-                {desaOptions.map(desa => (
-                  <option key={desa} value={desa}>{desa}</option>
-                ))}
-              </select>
-            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="ml-3 px-3 py-2 bg-[#324D3E] text-white rounded-lg text-sm font-medium hover:bg-[#5A7A60] transition-colors flex items-center gap-2 shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              <span className="hidden sm:inline">Filter</span>
+            </button>
           </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
-          <p className="text-black text-xs sm:text-sm">Total Desa</p>
-          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.totalDesa}</p>
-        </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
-          <p className="text-black text-xs sm:text-sm">Rata-rata Jumlah BTS</p>
-          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgBts}</p>
-        </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
-          <p className="text-black text-xs sm:text-sm">Rata-rata Jumlah Operator</p>
-          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgOperator}</p>
-        </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
-          <p className="text-black text-xs sm:text-sm">Rata-rata Sinyal Internet</p>
-          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgSinyalInternet}%</p>
-        </div>
-      </div>
-
-      {/* Map */}
-      <div className="border border-[#c9ece7] rounded-lg bg-white/80 backdrop-blur-sm overflow-hidden">
-        <h2 className="text-base sm:text-lg font-semibold text-black p-3 pb-2">Sebaran Desa ({mapMarkers.length} desa)</h2>
-        <div className="h-64 sm:h-80 w-full">
-          <MapComponent markers={mapMarkers} />
-        </div>
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 gap-4 sm:gap-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {/* Chart 1: Distribusi Cluster */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Distribusi Kluster Digital</h2>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <PieChart margin={{ top: 30, right: 60, bottom: 30, left: 60 }}>
-                <Pie
-                  data={clusterDistribution}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={true}
-                  label={renderCustomLabel}
-                  outerRadius={75}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {clusterDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Chart 2: Rata-rata Jumlah BTS dan Operator (dengan filter) */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
-              <h2 className="text-base sm:text-lg font-semibold text-black mb-2 sm:mb-0">
-                Rata-rata {selectedBtsOperator === "bts" ? "Jumlah BTS" : "Jumlah Operator"} per {selectedKab && selectedKec ? "Desa" : selectedKab ? "Kecamatan" : "Kabupaten"}
-              </h2>
-              <select
-                value={selectedBtsOperator}
-                onChange={(e) => setSelectedBtsOperator(e.target.value)}
-                className="px-2 py-1 sm:px-3 sm:py-2 bg-white border border-[#c9ece7] rounded-md text-xs sm:text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full sm:w-auto"
-              >
-                <option value="bts">Jumlah BTS</option>
-                <option value="operator">Jumlah Operator</option>
-              </select>
-            </div>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <BarChart data={btsOperatorByKabupaten}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={60} fontSize={10} />
-                <YAxis stroke="#666" fontSize={12} />
-                <Tooltip />
-                {/* Hanya tampilkan satu bar berdasarkan filter */}
-                <Bar
-                  dataKey="value"
-                  fill={
-                    selectedBtsOperator === "bts"
-                      ? "#324D3E"
-                      : "#728A6E"
-                  }
-                  name={
-                    selectedBtsOperator === "bts"
-                      ? "Jumlah BTS"
-                      : "Jumlah Operator"
-                  }
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {/* Chart 3: Kualitas Sinyal (dengan filter) */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
-              <h2 className="text-base sm:text-lg font-semibold text-black mb-2 sm:mb-0">
-                Kualitas Sinyal {selectedSignal === "telepon" ? "Telepon" : "Internet"} per {selectedKab && selectedKec ? "Desa" : selectedKab ? "Kecamatan" : "Kabupaten"}
-              </h2>
-              <select
-                value={selectedSignal}
-                onChange={(e) => setSelectedSignal(e.target.value)}
-                className="px-2 py-1 sm:px-3 sm:py-2 bg-white border border-[#c9ece7] rounded-md text-xs sm:text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full sm:w-auto"
-              >
-                <option value="telepon">Sinyal Telepon</option>
-                <option value="internet">Sinyal Internet</option>
-              </select>
-            </div>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <BarChart data={signalByKabupaten}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={60} fontSize={10} />
-                <YAxis stroke="#666" fontSize={12} />
-                <Tooltip />
-                {/* Hanya tampilkan satu bar berdasarkan filter */}
-                <Bar
-                  dataKey="value"
-                  fill={
-                    selectedSignal === "telepon"
-                      ? "#324D3E"
-                      : "#8EA48B"
-                  }
-                  name={
-                    selectedSignal === "telepon"
-                      ? "Sinyal Telepon (%)"
-                      : "Sinyal Internet (%)"
-                  }
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Chart 4: Rata-rata Infrastruktur Digital */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Rata-rata Infrastruktur Digital</h2>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <BarChart data={digitalInfraChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="name" stroke="#666" />
-                <YAxis stroke="#666" />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="avg" fill="#B3C8A1" name="Rata-rata" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
-          <h2 className="text-base sm:text-lg font-semibold text-black">
-            Detail Digital Desa ({tableData.length.toLocaleString()} hasil)
-          </h2>
-          <input
-            type="text"
-            placeholder="Cari nama desa, label, kabupaten, atau kecamatan ..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value)
-              setCurrentPage(1)
-            }}
-            className="px-3 py-2 sm:px-4 sm:py-2 border border-[#c9ece7] rounded-lg bg-white text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
-          />
-        </div>
-
-        {/* Tabel untuk Mobile */}
-        <div className="sm:hidden">
-          {paginatedData.length > 0 ? (
-            paginatedData.map((row, idx) => (
-              <div key={row.NAMA_DESA + idx} className="border-b border-[#e0e0e0] pb-4 mb-4 last:border-0 last:pb-0 last:mb-0">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-black font-medium">{row.NAMA_DESA}</p>
-                    <p className="text-gray-600 text-sm">{row.NAMA_KEC}, {row.NAMA_KAB}</p>
-                  </div>
-                  <span
-                    className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                      row.cluster === 0
-                        ? "bg-green-900 text-green-200"
-                        : row.cluster === 1
-                          ? "bg-yellow-900 text-yellow-200"
-                          : "bg-red-900 text-red-200"
-                    }`}
+          {/* Filter Panel - Collapsible on Mobile */}
+          {showFilters && (
+            <div className="space-y-2 sm:space-y-3 pt-3 border-t border-gray-200 animate-in slide-in-from-top duration-200">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Kabupaten</label>
+                  <select
+                    value={selectedKab}
+                    onChange={(e) => setSelectedKab(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent"
                   >
-                    {row.label}
-                  </span>
+                    <option value="">Semua Kabupaten</option>
+                    {[...new Set(data.map(d => d.NAMA_KAB))].sort().map(kab => (
+                      <option key={kab} value={kab}>{kab}</option>
+                    ))}
+                  </select>
                 </div>
-                <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                  <div>BTS: {row.jumlah_bts}</div>
-                  <div>Operator: {row.jumlah_operator}</div>
-                  <div>Telepon: {row.sinyal_telepon}%</div>
-                  <div>Internet: {row.sinyal_internet}%</div>
-                  <div>Warnet: {row.ada_warnet}</div>
-                  <div>Komputer: {row.komputer_desa}</div>
-                  <div>Internet Kantor: {row.internet_kantordesa}</div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Kecamatan</label>
+                  <select
+                    value={selectedKec}
+                    onChange={(e) => setSelectedKec(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    disabled={!selectedKab}
+                  >
+                    <option value="">Semua Kecamatan</option>
+                    {kecamatanOptions.map(kec => (
+                      <option key={kec} value={kec}>{kec}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Desa</label>
+                  <select
+                    value={selectedDesa}
+                    onChange={(e) => setSelectedDesa(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    disabled={!selectedKec}
+                  >
+                    <option value="">Semua Desa</option>
+                    {desaOptions.map(desa => (
+                      <option key={desa} value={desa}>{desa}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            ))
-          ) : (
-            <p className="text-center text-gray-500 py-4">Tidak ada data ditemukan</p>
+              {(selectedKab || selectedKec || selectedDesa) && (
+                <button
+                  onClick={() => {
+                    setSelectedKab("")
+                    setSelectedKec("")
+                    setSelectedDesa("")
+                  }}
+                  className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Reset Filter
+                </button>
+              )}
+            </div>
           )}
         </div>
+      </div>
 
-        {/* Tabel untuk Desktop */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b-2 border-gray-400 bg-gray-50">
-                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">No</th>
-                <th className="text-left py-3 px-3 text-black font-semibold text-xs sm:text-sm">Nama Kab/Kota</th>
-                <th className="text-left py-3 px-3 text-black font-semibold text-xs sm:text-sm">Nama Kecamatan</th>
-                <th className="text-left py-3 px-3 text-black font-semibold text-xs sm:text-sm">Nama Desa</th>
-                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Jumlah BTS</th>
-                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Jumlah Operator</th>
-                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Sinyal Telepon</th>
-                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Sinyal Internet</th>
-                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Warnet</th>
-                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Komputer Desa</th>
-                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Internet Kantor</th>
-                <th className="text-center py-3 px-3 text-black font-semibold text-xs sm:text-sm">Label</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedData.length > 0 ? (
-                paginatedData.map((row, idx) => (
-                  <tr key={row.NAMA_DESA + idx} className="border-b border-gray-300 hover:bg-gray-50 transition-colors">
-                    <td className="py-3 px-3 text-center text-black font-medium text-xs sm:text-sm">{startIndex + idx + 1}</td>
-                    <td className="py-3 px-3 text-black text-xs sm:text-sm">{row.NAMA_KAB}</td>
-                    <td className="py-3 px-3 text-black text-xs sm:text-sm">{row.NAMA_KEC}</td>
-                    <td className="py-3 px-3 text-black text-xs sm:text-sm">{row.NAMA_DESA}</td>
-                    <td className="py-3 px-3 text-center text-black text-xs sm:text-sm">{row.jumlah_bts}</td>
-                    <td className="py-3 px-3 text-center text-black text-xs sm:text-sm">{row.jumlah_operator}</td>
-                    <td className="py-3 px-3 text-center text-black text-xs sm:text-sm">{row.sinyal_telepon}%</td>
-                    <td className="py-3 px-3 text-center text-black text-xs sm:text-sm">{row.sinyal_internet}%</td>
-                    <td className="py-3 px-3 text-center text-black text-xs sm:text-sm">{row.ada_warnet}</td>
-                    <td className="py-3 px-3 text-center text-black text-xs sm:text-sm">{row.komputer_desa}</td>
-                    <td className="py-3 px-3 text-center text-black text-xs sm:text-sm">{row.internet_kantordesa}</td>
-                    <td className="py-3 px-3">
-                      <span
-                        className={`inline-block px-3 py-4 rounded-full text-xs font-medium ${
-                          row.cluster === 0
-                            ? "bg-green-900 text-green-200"
-                            : row.cluster === 1
-                              ? "bg-yellow-900 text-yellow-200"
-                              : "bg-red-900 text-red-200"
-                        }`}
-                      >
-                        {row.label}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={12} className="py-4 px-3 text-center text-gray-500 text-xs sm:text-sm">
-                    Tidak ada data ditemukan
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      <div className="px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        {/* Stats Cards - Responsive Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {[
+            { label: "Total Desa", value: stats.totalDesa, color: "from-blue-200 to-blue-900" },
+            { label: "Rata-rata Jumlah BTS", value: stats.avgBts, color: "from-green-500 to-green-600" },
+            { label: "Rata-rata Jumlah Operator", value: stats.avgOperator, color: "from-purple-500 to-purple-600" },
+            { label: "Rata-rata Sinyal Internet", value: stats.avgSinyalInternet + "%", color: "from-orange-500 to-orange-600" },
+          ].map((stat, idx) => (
+            <div key={idx} className={`bg-gradient-to-br ${stat.color} rounded-xl p-4 shadow-lg text-white`}>
+              <p className="text-xs sm:text-sm font-medium opacity-90 mb-1">{stat.label}</p>
+              <p className="text-2xl sm:text-3xl font-bold">{stat.value}</p>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-4 pt-4 border-t border-[#c9ece7] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="text-xs sm:text-sm text-black">
-            Menampilkan {paginatedData.length > 0 ? startIndex + 1 : 0} hingga{" "}
-            {Math.min(endIndex, tableData.length)} dari {tableData.length} data
+        {/* Map Section */}
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+              Sebaran Desa ({mapMarkers.length} lokasi)
+            </h2>
           </div>
-          <div className="flex items-center gap-1 sm:gap-2">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 sm:px-3 sm:py-2 border border-[#c9ece7] rounded text-xs sm:text-sm text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-            >
-              Sebelumnya
-            </button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, tableTotalPages) }, (_, i) => {
-                let pageNum
-                if (tableTotalPages <= 5) {
-                  pageNum = i + 1
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1
-                } else if (currentPage >= tableTotalPages - 2) {
-                  pageNum = tableTotalPages - 4 + i
-                } else {
-                  pageNum = currentPage - 2 + i
-                }
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`px-2 py-1 sm:px-3 sm:py-2 rounded text-xs sm:text-sm ${
-                      currentPage === pageNum
-                        ? "bg-green-600 text-white"
-                        : "border border-gray-300 text-black hover:bg-gray-100"
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                )
-              })}
+          <div className="h-56 sm:h-80 md:h-96">
+            <MapComponent
+              markers={mapMarkers}
+              renderTooltip={(marker) => (
+                <div className="text-sm">
+                  <div className="font-semibold text-gray-900">{marker.name}</div>
+                  {marker.kecamatan && <div className="text-gray-600">Kec. {marker.kecamatan}</div>}
+                  {marker.kabupaten && <div className="text-gray-600">Kab. {marker.kabupaten}</div>}
+                  {marker.label && (
+                    <div className="mt-1 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium inline-block">
+                      {marker.label}
+                    </div>
+                  )}
+                </div>
+              )}
+            />
+          </div>
+        </div>
+
+        {/* Charts Section - Mobile Optimized */}
+        <div className="space-y-4 sm:space-y-6">
+          {/* Row 1 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            {/* Chart 1: Distribusi Cluster */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                  Distribusi Kluster Digital
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={clusterDistribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={renderCustomLabel}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {clusterDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-            <button
-              onClick={() => setCurrentPage(Math.min(tableTotalPages, currentPage + 1))}
-              disabled={currentPage === tableTotalPages}
-              className="px-3 py-1 sm:px-3 sm:py-2 border border-[#c9ece7] rounded text-xs sm:text-sm text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-            >
-              Selanjutnya
-            </button>
+
+            {/* Chart 2: Rata-rata Jumlah BTS dan Operator (dengan filter) */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                    Rata-rata {selectedBtsOperator === "bts" ? "Jumlah BTS" : "Jumlah Operator"} per {selectedKab && selectedKec ? "Desa" : selectedKab ? "Kecamatan" : "Kabupaten"}
+                  </h2>
+                  <select
+                    value={selectedBtsOperator}
+                    onChange={(e) => setSelectedBtsOperator(e.target.value)}
+                    className="px-2 py-1 sm:px-3 sm:py-2 bg-white border border-gray-300 rounded-lg text-xs sm:text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent w-full sm:w-auto"
+                  >
+                    <option value="bts">Jumlah BTS</option>
+                    <option value="operator">Jumlah Operator</option>
+                  </select>
+                </div>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={btsOperatorByKabupaten} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="name" 
+                      stroke="#6b7280" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80} 
+                      fontSize={10}
+                      interval={0}
+                    />
+                    <YAxis stroke="#6b7280" fontSize={12} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                    />
+                    <Bar
+                      dataKey="value"
+                      fill={
+                        selectedBtsOperator === "bts"
+                          ? "#324D3E"
+                          : "#728A6E"
+                      }
+                      name={
+                        selectedBtsOperator === "bts"
+                          ? "Jumlah BTS"
+                          : "Jumlah Operator"
+                      }
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            {/* Chart 3: Kualitas Sinyal (dengan filter) */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                    Kualitas Sinyal {selectedSignal === "telepon" ? "Telepon" : "Internet"} per {selectedKab && selectedKec ? "Desa" : selectedKab ? "Kecamatan" : "Kabupaten"}
+                  </h2>
+                  <select
+                    value={selectedSignal}
+                    onChange={(e) => setSelectedSignal(e.target.value)}
+                    className="px-2 py-1 sm:px-3 sm:py-2 bg-white border border-gray-300 rounded-lg text-xs sm:text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent w-full sm:w-auto"
+                  >
+                    <option value="telepon">Sinyal Telepon</option>
+                    <option value="internet">Sinyal Internet</option>
+                  </select>
+                </div>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={signalByKabupaten} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="name" 
+                      stroke="#6b7280" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80} 
+                      fontSize={10}
+                      interval={0}
+                    />
+                    <YAxis stroke="#6b7280" fontSize={12} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                    />
+                    <Bar
+                      dataKey="value"
+                      fill={
+                        selectedSignal === "telepon"
+                          ? "#324D3E"
+                          : "#8EA48B"
+                      }
+                      name={
+                        selectedSignal === "telepon"
+                          ? "Sinyal Telepon (%)"
+                          : "Sinyal Internet (%)"
+                      }
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Chart 4: Rata-rata Infrastruktur Digital */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                  Rata-rata Infrastruktur Digital
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={digitalInfraChartData} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
+                    <YAxis stroke="#6b7280" fontSize={12} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                    />
+                    <Legend wrapperStyle={{ fontSize: '12px' }} />
+                    <Bar dataKey="avg" fill="#B3C8A1" name="Rata-rata" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -44,7 +44,6 @@ interface HealthData {
   Latitude: number
 }
 
-// Fungsi bantu untuk wrap teks (tetap dipakai)
 const wrapText = (text: string, maxCharsPerLine = 18) => {
   const words = text.split(" ");
   const lines: string[] = [];
@@ -67,49 +66,52 @@ const wrapText = (text: string, maxCharsPerLine = 18) => {
 const renderCustomLabel = (props: any) => {
   const { cx, cy, midAngle, outerRadius, percent, name } = props;
   const RADIAN = Math.PI / 180;
-  const offset = 30;
+  const offset = 25;
   const radius = outerRadius + offset;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  const lines = wrapText(String(name), 20);
+  const lines = wrapText(String(name), 25);
   const anchor = x > cx ? "start" : "end";
 
-    return (
-      <text
-        x={x}
-        y={y}
-        fill="#12201A"
-        textAnchor={anchor}
-        dominantBaseline="central"
-        fontSize={12}
-      >
-        {lines.map((line: string, i: number) => (
-          <tspan key={i} x={x} dy={i === 0 ? 0 : "1.1em"}>
-            {line}
-          </tspan>
-        ))}
-        <tspan x={x} dy="1.1em">
-          {`${(percent * 100).toFixed(0)}%`}
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#12201A"
+      textAnchor={anchor}
+      dominantBaseline="central"
+      fontSize={10}
+    >
+      {lines.map((line: string, i: number) => (
+        <tspan key={i} x={x} dy={i === 0 ? 0 : "1em"}>
+          {line}
         </tspan>
-      </text>
-    );
-  };
+      ))}
+      <tspan x={x} dy="1em" fontWeight="bold">
+        {`${(percent * 100).toFixed(0)}%`}
+      </tspan>
+    </text>
+  );
+};
 
 const MapComponent = dynamic(() => import("./MapComponent"), {
   ssr: false,
   loading: () => (
-    <div className="h-64 sm:h-80 bg-white/80 backdrop-blur-sm rounded-lg animate-pulse" />
+    <div className="h-56 sm:h-80 md:h-96 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+      <p className="text-gray-500 text-sm">Memuat peta...</p>
+    </div>
   ),
 })
 
-const COLORS = ["#324D3E", "#728A6E", "#8EA48B", "#B3C8A1", "#C9D9C3"]
-const ITEMS_PER_PAGE = 5 // Kurangi untuk mobile
+const COLORS = ["#324D3E", "#5A7A60", "#728A6E", "#8EA48B", "#B3C8A1", "#C9D9C3"]
+const ITEMS_PER_PAGE = 10
 
 export default function KeseshatanPage() {
   const [data, setData] = useState<HealthData[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
+  const [showFilters, setShowFilters] = useState(false)
 
   const [selectedKab, setSelectedKab] = useState<string>("")
   const [selectedKec, setSelectedKec] = useState<string>("")
@@ -118,8 +120,6 @@ export default function KeseshatanPage() {
   const [desaOptions, setDesaOptions] = useState<string[]>([])
 
   const {setPageContext} = useChatbotContext();
-
-  // === EFFECTS ===
 
   useEffect(() => {
     if (!selectedKab) {
@@ -146,12 +146,10 @@ export default function KeseshatanPage() {
     setSelectedDesa("")
   }, [selectedKec, selectedKab, data])
 
-  // Fetch data
   useEffect(() => {
     const fetchData = async () => {
-      // Gunakan klien yang sudah diimpor
       const { data, error } = await supabase
-        .from('cluster_kesehatan') // Ganti nama tabel sesuai kebutuhan
+        .from('cluster_kesehatan')
         .select('*');
 
       if (error) {
@@ -166,7 +164,6 @@ export default function KeseshatanPage() {
     fetchData();
   }, []);
 
-  // === DATA DINAMIS UNTUK SEMUA KOMPONEN ===
   const activeData = useMemo(() => {
     if (!data.length) return []
     let filtered = data
@@ -236,7 +233,7 @@ export default function KeseshatanPage() {
       return acc;
     }, {} as Record<string, { nama: string; total: number; count: number }>);
 
-     const list= Object.values(byKab).map(k => ({
+    const list= Object.values(byKab).map(k => ({
       nama: k.nama,
       skor: k.total / k.count
     }));
@@ -248,7 +245,6 @@ export default function KeseshatanPage() {
     };
   }, [data]);
 
-  // === DATA UNTUK ANALISIS PER KECAMATAN (abaikan selectedDesa) ===
   const kecamatanData = useMemo(() => {
     if (!data.length) return [];
     let result = data;
@@ -257,7 +253,6 @@ export default function KeseshatanPage() {
     return result;
   }, [data, selectedKab, selectedKec]);
 
-  // === RINGKASAN NUMERIK UNTUK CHATBOT ===
   const visibleDataSummary = useMemo(() => {
     if (!data.length || !kecamatanData.length) return null;
 
@@ -269,7 +264,6 @@ export default function KeseshatanPage() {
     if (selectedKab && !selectedKec) wilayah = `Kabupaten ${selectedKab}`;
     else if (selectedKab && selectedKec) wilayah = `Kecamatan ${selectedKec}, Kabupaten ${selectedKab}`;
 
-    // Desa terbaik/terburuk (hanya di level kecamatan)
     let desaTerburuk: HealthData | null = null;
     let desaTerbaik: HealthData | null = null;
     let skorMin = Infinity;
@@ -289,7 +283,6 @@ export default function KeseshatanPage() {
       });
     }
 
-    // Global insights
     let globalInsights = null;
     if (!selectedKab && !selectedKec) {
       globalInsights = { kabupatenTerbaik, kabupatenTerburuk };
@@ -371,7 +364,7 @@ export default function KeseshatanPage() {
       top5_terbaik: top5Kesehatan.terbaik,
       top5_terburuk: top5Kesehatan.terburuk,
     };
-  }, [kecamatanData, selectedKab, selectedKec, data, kabupatenTerbaik, kabupatenTerburuk]);
+  }, [kecamatanData, selectedKab, selectedKec, data, kabupatenTerbaik, kabupatenTerburuk, top5Kesehatan]);
 
   useEffect(() => {
     if (visibleDataSummary) {
@@ -388,7 +381,6 @@ export default function KeseshatanPage() {
     }
   }, [visibleDataSummary, selectedKab, selectedKec, selectedDesa, setPageContext]);
 
-  // === DATA UNTUK TABEL: semua desa dalam kecamatan terpilih (abaikan selectedDesa) ===
   const tableData = useMemo(() => {
     if (!data.length) return []
     let result = data
@@ -407,17 +399,14 @@ export default function KeseshatanPage() {
     return result
   }, [data, selectedKab, selectedKec, searchTerm])
 
-  // === PAGINASI ===
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
   const endIndex = startIndex + ITEMS_PER_PAGE
   const paginatedData = useMemo(() => tableData.slice(startIndex, endIndex), [tableData, startIndex, endIndex])
   const tableTotalPages = Math.ceil(tableData.length / ITEMS_PER_PAGE)
 
-  // === MAP MARKERS: HANYA SAMPAI LEVEL KECAMATAN ===
   const mapMarkers = useMemo(() => {
     if (!data.length) return []
 
-    // Jika tidak ada filter → tampilkan kabupaten
     if (!selectedKab && !selectedKec && !selectedDesa) {
       const kabupatenMap = new Map<string, { lat: number; lng: number; name: string; cluster: number; label: string }>()
       data.forEach(item => {
@@ -442,7 +431,6 @@ export default function KeseshatanPage() {
       }))
     }
 
-    // Jika hanya kabupaten dipilih → tampilkan kecamatan
     if (selectedKab && !selectedKec && !selectedDesa) {
       const kecamatanMap = new Map<string, { lat: number; lng: number; name: string; cluster: number; label: string }>()
       data
@@ -470,7 +458,6 @@ export default function KeseshatanPage() {
       }))
     }
 
-    // Jika kabupaten + kecamatan dipilih → tampilkan semua desa di kecamatan itu
     if (selectedKab && selectedKec && !selectedDesa) {
       return data
         .filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec && d.Latitude && d.Longitude)
@@ -484,7 +471,6 @@ export default function KeseshatanPage() {
         }))
     }
 
-    // Jika desa dipilih → tetap tampilkan semua desa di kecamatan itu
     if (selectedDesa) {
       const desaItem = data.find(d => d.NAMA_DESA === selectedDesa)
       if (!desaItem) return []
@@ -512,12 +498,10 @@ export default function KeseshatanPage() {
       }))
   }, [data, selectedKab, selectedKec, selectedDesa])
 
-  // === CHART DATA: Tampilkan unit yang sesuai dengan filter aktif ===
   const chartData = useMemo(() => {
     if (!data.length) return { data: [], label: "Data" }
 
     if (selectedKab && selectedKec && selectedDesa) {
-      // Tampilkan hanya satu bar: skor dari desa yang dipilih
       const desaItem = data.find(d => d.NAMA_DESA === selectedDesa)
       if (!desaItem) return { data: [], label: "Desa" }
       return {
@@ -525,14 +509,12 @@ export default function KeseshatanPage() {
         label: "Desa"
       }
     } else if (selectedKab && selectedKec) {
-      // Tampilkan per desa di kecamatan
       const desaData = data.filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec)
       return {
         data: desaData.map(d => ({ name: d.NAMA_DESA, fasilitas: d.skor_fasilitas, tenaga: d.skor_tenaga_kesehatan })),
         label: "Desa"
       }
     } else if (selectedKab) {
-      // Tampilkan per kecamatan di kabupaten
       const grouped = data
         .filter(d => d.NAMA_KAB === selectedKab)
         .reduce((acc, item) => {
@@ -558,7 +540,6 @@ export default function KeseshatanPage() {
         }))
       return { data: grouped, label: "Kecamatan" }
     } else {
-      // Tampilkan per kabupaten
       const grouped = data
         .reduce((acc, item) => {
           const existing = acc.find(x => x.name === item.NAMA_KAB)
@@ -585,7 +566,6 @@ export default function KeseshatanPage() {
     }
   }, [data, selectedKab, selectedKec, selectedDesa])
 
-  // === STATISTIK & CHART LAINNYA ===
   const skorComponentChartData = useMemo(() => {
     if (!activeData.length) return []
     const n = activeData.length
@@ -645,378 +625,355 @@ export default function KeseshatanPage() {
   }, [activeData])
 
   if (loading) {
-    return <div className="p-4 sm:p-6 text-black">Loading...</div>
+    return (
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#324D3E] mx-auto mb-4"></div>
+          <p className="text-gray-600">Memuat data dari server...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-2 p-2 sm:p-2">
-      <div className="sticky top-0 z-50 backdrop-blur-sm border-b border-[#c9ece7] px-4 sm:px-6 py-4 -mx-4 sm:-mx-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-black mb-2">Dashboard Kesehatan Desa</h1>
-            <p className="text-sm sm:text-base text-gray-600">Data kluster kesehatan masyarakat per desa</p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 flex-wrap justify-end">
-            <div className="flex flex-col gap-1 w-full sm:w-auto">
-              <label className="text-xs font-bold text-gray-600">Filter Kabupaten</label>
-              <select
-                value={selectedKab}
-                onChange={(e) => setSelectedKab(e.target.value)}
-                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
-              >
-                <option value="">Semua Kabupaten</option>
-                {[...new Set(data.map(d => d.NAMA_KAB))].sort().map(kab => (
-                  <option key={kab} value={kab}>{kab}</option>
-                ))}
-              </select>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* STICKY HEADER - Mobile Optimized */}
+      <div className="sticky top-0 z-[999] bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-200">
+        <div className="px-3 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-gray-900 truncate">
+                Dashboard Kesehatan Desa
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                Analisis clustering kesehatan masyarakat per desa
+              </p>
             </div>
-
-            <div className="flex flex-col gap-1 w-full sm:w-auto">
-              <label className="text-xs font-bold text-gray-600">Filter Kecamatan</label>
-              <select
-                value={selectedKec}
-                onChange={(e) => setSelectedKec(e.target.value)}
-                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
-                disabled={!selectedKab}
-              >
-                <option value="">Semua Kecamatan</option>
-                {kecamatanOptions.map(kec => (
-                  <option key={kec} value={kec}>{kec}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1 w-full sm:w-auto">
-              <label className="text-xs font-bold text-gray-600">Filter Desa</label>
-              <select
-                value={selectedDesa}
-                onChange={(e) => setSelectedDesa(e.target.value)}
-                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
-                disabled={!selectedKec}
-              >
-                <option value="">Semua Desa</option>
-                {desaOptions.map(desa => (
-                  <option key={desa} value={desa}>{desa}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
-          <p className="text-black text-xs sm:text-sm font-medium">Total Desa</p>
-          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.totalDesa}</p>
-        </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
-          <p className="text-black text-xs sm:text-sm font-medium">Rata-rata Skor Fasilitas</p>
-          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgFasilitas}</p>
-        </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
-          <p className="text-black text-xs sm:text-sm font-medium">Rata-rata Skor Tenaga</p>
-          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgTenaga}</p>
-        </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
-          <p className="text-black text-xs sm:text-sm font-medium">Rata-rata Skor Kesehatan</p>
-          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgKesehatan}</p>
-        </div>
-      </div>
-
-      {/* Map */}
-      <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-lg overflow-hidden">
-        <h2 className="text-base sm:text-lg font-semibold text-black p-3 pb-2">Sebaran Desa di Jawa Timur</h2>
-        <div className="h-64 sm:h-80 w-full">
-          <MapComponent markers={mapMarkers} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:gap-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {/* Chart 1: Distribusi Cluster */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Distribusi Kluster Kesehatan</h2>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <PieChart margin={{bottom:20}}>
-                <Pie
-                  data={clusterDistribution}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={renderCustomLabel}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {clusterDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="ml-3 px-3 py-2 bg-[#324D3E] text-white rounded-lg text-sm font-medium hover:bg-[#5A7A60] transition-colors flex items-center gap-2 shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              <span className="hidden sm:inline">Filter</span>
+            </button>
           </div>
 
-          {/* Chart 2: Rata-rata Skor Fasilitas */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">
-              Rata-rata Skor Fasilitas per {chartData.label}
-            </h2>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <BarChart data={chartData.data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={60} fontSize={10} />
-                <YAxis stroke="#666" />
-                <Tooltip contentStyle={{ backgroundColor: "#f5f5f5", border: "1px solid #ccc" }} />
-                <Bar dataKey="fasilitas" fill="#324D3E" name="Skor Fasilitas" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {/* Chart 3: Rata-rata Skor Tenaga Kesehatan */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">
-              Rata-rata Skor Tenaga Kesehatan per {chartData.label}
-            </h2>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <LineChart data={chartData.data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={60} fontSize={10} />
-                <YAxis stroke="#666" />
-                <Tooltip contentStyle={{ backgroundColor: "#f5f5f5", border: "1px solid #ccc" }} />
-                <Line type="monotone" dataKey="tenaga" stroke="#324D3E" strokeWidth={2} name="Skor Tenaga" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Chart 4: Rata-rata Skor Komponen Kesehatan */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Rata-rata Skor Komponen Kesehatan</h2>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <BarChart data={skorComponentChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="name" stroke="#666" />
-                <YAxis stroke="#666" />
-                <Tooltip contentStyle={{ backgroundColor: "#f5f5f5", border: "1px solid #ccc" }} />
-                <Bar dataKey="avg" fill="#728A6E" name="Skor Rata-rata" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {/* Chart 5: Fasilitas Kesehatan per 1000 Penduduk */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Fasilitas Kesehatan per 1000 Penduduk</h2>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <BarChart data={infraChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="name" stroke="#666" />
-                <YAxis stroke="#666" />
-                <Tooltip contentStyle={{ backgroundColor: "#f5f5f5", border: "1px solid #ccc" }} />
-                <Bar dataKey="avg" fill="#8EA48B" name="Per 1000 Penduduk" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Chart 6: Tenaga Kesehatan per 1000 Penduduk */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Tenaga Kesehatan per 1000 Penduduk</h2>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <BarChart data={workforceChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="name" stroke="#666" />
-                <YAxis stroke="#666" />
-                <Tooltip contentStyle={{ backgroundColor: "#f5f5f5", border: "1px solid #ccc" }} />
-                <Bar dataKey="avg" fill="#B3C8A1" name="Per 1000 Penduduk" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
-          <h2 className="text-base sm:text-lg font-semibold text-black">
-            Detail Kesehatan Desa ({tableData.length.toLocaleString()} hasil)
-          </h2>
-          <input
-            type="text"
-            placeholder="Cari nama desa, label, kabupaten, atau kecamatan ..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value)
-              setCurrentPage(1)
-            }}
-            className="px-3 py-2 sm:px-4 sm:py-2 border border-[#c9ece7] rounded-lg bg-white text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
-          />
-        </div>
-
-        {/* Tabel untuk Mobile */}
-        <div className="sm:hidden overflow-x-auto">
-          {paginatedData.length > 0 ? (
-            paginatedData.map((item, index) => (
-              <div key={item.NAMA_DESA + index} className="border-b border-[#e0e0e0] pb-4 mb-4 last:border-0 last:pb-0 last:mb-0">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-black font-medium">{item.NAMA_DESA}</p>
-                    <p className="text-gray-600 text-sm">{item.NAMA_KEC}, {item.NAMA_KAB}</p>
-                  </div>
-                  <span
-                    className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                      item.cluster === 0
-                        ? "bg-blue-900 text-blue-200"
-                        : item.cluster === 1
-                        ? "bg-yellow-900 text-yellow-200"
-                        : item.cluster === 2
-                        ? "bg-[#016B61] text-green-200"
-                        :item.cluster === 3
-                        ? "bg-[#473472] text-purple-200"
-                        :item.cluster === 4
-                        ? "bg-grey-900 text-grey-200"
-                        : "bg-red-900 text-red-200"
-                    }`}
+          {/* Filter Panel - Collapsible on Mobile */}
+          {showFilters && (
+            <div className="space-y-2 sm:space-y-3 pt-3 border-t border-gray-200 animate-in slide-in-from-top duration-200">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Kabupaten</label>
+                  <select
+                    value={selectedKab}
+                    onChange={(e) => setSelectedKab(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent"
                   >
-                    {item.label}
-                  </span>
+                    <option value="">Semua Kabupaten</option>
+                    {[...new Set(data.map(d => d.NAMA_KAB))].sort().map(kab => (
+                      <option key={kab} value={kab}>{kab}</option>
+                    ))}
+                  </select>
                 </div>
-                <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                  <div>Fasilitas: {item.skor_fasilitas.toFixed(1)}</div>
-                  <div>Tenaga: {item.skor_tenaga_kesehatan.toFixed(1)}</div>
-                  <div>Gizi: {item.skor_gizi.toFixed(1)}</div>
-                  <div>KLB: {item.skor_klb.toFixed(1)}</div>
-                  <div>Program: {item.skor_program_prioritas.toFixed(1)}</div>
-                  <div>Total: {item.skor_kesehatan_total.toFixed(1)}</div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Kecamatan</label>
+                  <select
+                    value={selectedKec}
+                    onChange={(e) => setSelectedKec(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    disabled={!selectedKab}
+                  >
+                    <option value="">Semua Kecamatan</option>
+                    {kecamatanOptions.map(kec => (
+                      <option key={kec} value={kec}>{kec}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Desa</label>
+                  <select
+                    value={selectedDesa}
+                    onChange={(e) => setSelectedDesa(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    disabled={!selectedKec}
+                  >
+                    <option value="">Semua Desa</option>
+                    {desaOptions.map(desa => (
+                      <option key={desa} value={desa}>{desa}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            ))
-          ) : (
-            <p className="text-center text-gray-500 py-4">Tidak ada data ditemukan</p>
+
+              {(selectedKab || selectedKec || selectedDesa) && (
+                <button
+                  onClick={() => {
+                    setSelectedKab("")
+                    setSelectedKec("")
+                    setSelectedDesa("")
+                  }}
+                  className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Reset Filter
+                </button>
+              )}
+            </div>
           )}
         </div>
+      </div>
 
-        {/* Tabel untuk Desktop */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-[#c9ece7] bg-gray-50">
-                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">No</th>
-                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Nama Kab/Kota</th>
-                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Nama Kecamatan</th>
-                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Nama Desa</th>
-                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Fasilitas</th>
-                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Tenaga</th>
-                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Gizi</th>
-                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">KLB</th>
-                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Program</th>
-                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Total Skor</th>
-                <th className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">Label</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedData.length > 0 ? (
-                paginatedData.map((item, index) => (
-                  <tr key={item.NAMA_DESA + index} className="border-b border-[#e0e0e0] hover:bg-gray-50 transition-colors">
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{startIndex + index + 1}</td>
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.NAMA_KAB}</td>
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.NAMA_KEC}</td>
-                    <td className="px-3 py-2 text-black font-medium text-xs sm:text-sm">{item.NAMA_DESA}</td>
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.skor_fasilitas.toFixed(1)}</td>
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.skor_tenaga_kesehatan.toFixed(1)}</td>
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.skor_gizi.toFixed(1)}</td>
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.skor_klb.toFixed(1)}</td>
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.skor_program_prioritas.toFixed(1)}</td>
-                    <td className="px-3 py-2 text-black font-semibold text-xs sm:text-sm">
-                      {item.skor_kesehatan_total.toFixed(1)}
-                    </td>
-                    <td className="px-3 py-2 text-xs sm:text-sm">
-                      <span
-                        className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                          item.cluster === 0
-                            ? "bg-blue-900 text-blue-200"
-                            : item.cluster === 1
-                            ? "bg-yellow-900 text-yellow-200"
-                            : item.cluster === 2
-                            ? "bg-[#016B61] text-green-200"
-                            :item.cluster === 3
-                            ? "bg-[#473472] text-purple-200"
-                            :item.cluster === 4
-                            ? "bg-grey-900 text-grey-200"
-                            : "bg-red-900 text-red-200"
-                        }`}
-                      >
-                        {item.label}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={11} className="px-3 py-4 text-center text-gray-500 text-xs sm:text-sm">
-                    Tidak ada data ditemukan
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      <div className="px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        {/* Stats Cards - Responsive Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {[
+            { label: "Total Desa", value: stats.totalDesa, color: "from-blue-500 to-blue-600" },
+            { label: "Rata-rata Skor Fasilitas", value: stats.avgFasilitas, color: "from-green-500 to-green-600" },
+            { label: "Rata-rata Skor Tenaga", value: stats.avgTenaga, color: "from-purple-500 to-purple-600" },
+            { label: "Rata-rata Skor Kesehatan", value: stats.avgKesehatan, color: "from-pink-500 to-pink-600" },
+          ].map((stat, idx) => (
+            <div key={idx} className={`bg-gradient-to-br ${stat.color} rounded-xl p-4 shadow-lg text-white`}>
+              <p className="text-xs sm:text-sm font-medium opacity-90 mb-1">{stat.label}</p>
+              <p className="text-2xl sm:text-3xl font-bold">{stat.value}</p>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-4 pt-4 border-t border-[#c9ece7] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="text-xs sm:text-sm text-black">
-            Menampilkan {paginatedData.length > 0 ? startIndex + 1 : 0} hingga{" "}
-            {Math.min(endIndex, tableData.length)} dari {tableData.length} data
+        {/* Map Section */}
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+              Sebaran Kesehatan Desa
+              <span className="ml-2 text-sm font-normal text-gray-600">({mapMarkers.length} lokasi)</span>
+            </h2>
           </div>
+          <div className="h-56 sm:h-80 md:h-96">
+            <MapComponent 
+              markers={mapMarkers}
+              renderTooltip={(marker) => (
+                <div className="text-sm">
+                  <div className="font-semibold text-gray-900">{marker.name}</div>
+                  {marker.kecamatan && <div className="text-gray-600">Kec. {marker.kecamatan}</div>}
+                  {marker.kabupaten && <div className="text-gray-600">Kab. {marker.kabupaten}</div>}
+                  {marker.label && (
+                    <div className="mt-1 px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium inline-block">
+                      {marker.label}
+                    </div>
+                  )}
+                </div>
+              )}
+            />
+          </div>
+        </div>
 
-          <div className="flex items-center gap-1 sm:gap-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 sm:px-3 sm:py-2 border border-[#c9ece7] rounded text-xs sm:text-sm text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-            >
-              Sebelumnya
-            </button>
-
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, tableTotalPages) }, (_, i) => {
-                let pageNum
-                if (tableTotalPages <= 5) {
-                  pageNum = i + 1
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1
-                } else if (currentPage >= tableTotalPages - 2) {
-                  pageNum = tableTotalPages - 4 + i
-                } else {
-                  pageNum = currentPage - 2 + i
-                }
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`px-2 py-1 sm:px-3 sm:py-2 rounded text-xs sm:text-sm ${
-                      currentPage === pageNum
-                        ? "bg-green-600 text-white"
-                        : "border border-gray-300 text-black hover:bg-gray-100"
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                )
-              })}
+        {/* Charts Section - Mobile Optimized */}
+        <div className="space-y-4 sm:space-y-6">
+          {/* Row 1 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            {/* Chart 1 - Distribusi Cluster */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                  Distribusi Kluster Kesehatan
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={clusterDistribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={renderCustomLabel}
+                      outerRadius={60}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {clusterDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             </div>
 
-            <button
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, tableTotalPages))}
-              disabled={currentPage === tableTotalPages}
-              className="px-3 py-1 sm:px-3 sm:py-2 border border-[#c9ece7] rounded text-xs sm:text-sm text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-            >
-              Selanjutnya
-            </button>
+            {/* Chart 2 - Skor Fasilitas */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                  Rata-rata Skor Fasilitas per {chartData.label}
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={chartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 60 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="name" 
+                      stroke="#6b7280" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80} 
+                      fontSize={9}
+                      interval={0}
+                    />
+                    <YAxis stroke="#6b7280" fontSize={10} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                    />
+                    <Bar dataKey="fasilitas" fill="#324D3E" name="Skor Fasilitas" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            {/* Chart 3 - Skor Tenaga */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                  Rata-rata Skor Tenaga Kesehatan per {chartData.label}
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={chartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 60 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="name" 
+                      stroke="#6b7280" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80} 
+                      fontSize={9}
+                      interval={0}
+                    />
+                    <YAxis stroke="#6b7280" fontSize={10} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                    />
+                    <Line type="monotone" dataKey="tenaga" stroke="#5A7A60" strokeWidth={3} name="Skor Tenaga" dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Chart 4 - Komponen Kesehatan */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                  Rata-rata Skor Komponen Kesehatan
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={skorComponentChartData} margin={{ top: 5, right: 10, left: -10, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" stroke="#6b7280" fontSize={10} />
+                    <YAxis stroke="#6b7280" fontSize={10} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                    />
+                    <Bar dataKey="avg" fill="#728A6E" name="Skor Rata-rata" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 3 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            {/* Chart 5 - Fasilitas per 1000 */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                  Fasilitas Kesehatan per 1000 Penduduk
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={infraChartData} margin={{ top: 5, right: 10, left: -10, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" stroke="#6b7280" fontSize={10} />
+                    <YAxis stroke="#6b7280" fontSize={10} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                    />
+                    <Bar dataKey="avg" fill="#8EA48B" name="Per 1000 Penduduk" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Chart 6 - Tenaga per 1000 */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                  Tenaga Kesehatan per 1000 Penduduk
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={workforceChartData} margin={{ top: 5, right: 10, left: -10, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" stroke="#6b7280" fontSize={10} />
+                    <YAxis stroke="#6b7280" fontSize={10} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                    />
+                    <Bar dataKey="avg" fill="#B3C8A1" name="Per 1000 Penduduk" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+        
+
     </div>
   )
 }

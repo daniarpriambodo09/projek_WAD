@@ -1,6 +1,5 @@
 // src/app/(your-path)/ekonomi.tsx
 "use client"
-
 import dynamic from "next/dynamic"
 import { useEffect, useState, useMemo } from "react"
 import {
@@ -17,7 +16,6 @@ import {
 } from "recharts"
 import { useChatbotContext } from '@/context/ChatbotContext';
 import { supabase } from "@/lib/supabaseClient";
-
 interface EkonomiData {
   NAMA_KAB: string
   NAMA_KEC: string
@@ -51,12 +49,10 @@ interface EkonomiData {
   Longitude: number
 }
 
-// Fungsi bantu untuk wrap teks (tetap dipakai)
 const wrapText = (text: string, maxCharsPerLine = 18) => {
   const words = text.split(" ");
   const lines: string[] = [];
   let currentLine = "";
-
   words.forEach((word) => {
     const candidate = currentLine ? `${currentLine} ${word}` : word;
     if (candidate.length > maxCharsPerLine) {
@@ -66,7 +62,6 @@ const wrapText = (text: string, maxCharsPerLine = 18) => {
       currentLine = candidate;
     }
   });
-
   if (currentLine) lines.push(currentLine);
   return lines;
 };
@@ -74,278 +69,63 @@ const wrapText = (text: string, maxCharsPerLine = 18) => {
 const renderCustomLabel = (props: any) => {
   const { cx, cy, midAngle, outerRadius, percent, name } = props;
   const RADIAN = Math.PI / 180;
-  const offset = 30;
+  const offset = 25;
   const radius = outerRadius + offset;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  const lines = wrapText(String(name), 20);
+  const lines = wrapText(String(name), 25);
   const anchor = x > cx ? "start" : "end";
-
-    return (
-      <text
-        x={x}
-        y={y}
-        fill="#12201A"
-        textAnchor={anchor}
-        dominantBaseline="central"
-        fontSize={12}
-      >
-        {lines.map((line: string, i: number) => (
-          <tspan key={i} x={x} dy={i === 0 ? 0 : "1.1em"}>
-            {line}
-          </tspan>
-        ))}
-        <tspan x={x} dy="1.1em">
-          {`${(percent * 100).toFixed(0)}%`}
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#12201A"
+      textAnchor={anchor}
+      dominantBaseline="central"
+      fontSize={12}
+    >
+      {lines.map((line: string, i: number) => (
+        <tspan key={i} x={x} dy={i === 0 ? 0 : "1em"}>
+          {line}
         </tspan>
-      </text>
-    );
-  };
+      ))}
+      <tspan x={x} dy="1em" fontWeight="bold">
+        {`${(percent * 100).toFixed(0)}%`}
+      </tspan>
+    </text>
+  );
+};
 
 const MapComponent = dynamic(() => import("./MapComponent"), {
   ssr: false,
   loading: () => (
-    <div className="h-64 sm:h-80 bg-white/80 backdrop-blur-sm rounded-lg animate-pulse" />
+    <div className="h-56 sm:h-80 md:h-96 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+      <p className="text-gray-500 text-sm">Memuat peta...</p>
+    </div>
   ),
 })
 
-const COLORS = ["#324D3E", "#728A6E", "#8EA48B", "#B3C8A1", "#C9D9C3"]
-const ITEMS_PER_PAGE = 5 // Kurangi untuk mobile
+const COLORS = ["#324D3E", "#5A7A60", "#728A6E", "#8EA48B", "#B3C8A1", "#9AB59F"]
 
 export default function EkonomiPage() {
   const [data, setData] = useState<EkonomiData[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [currentPage, setCurrentPage] = useState(1)
-
   const [selectedKab, setSelectedKab] = useState<string>("")
   const [selectedKec, setSelectedKec] = useState<string>("")
   const [selectedDesa, setSelectedDesa] = useState<string>("")
   const [kecamatanOptions, setKecamatanOptions] = useState<string[]>([])
   const [desaOptions, setDesaOptions] = useState<string[]>([])
-  
-  const {setPageContext} = useChatbotContext();
+  const [showFilters, setShowFilters] = useState(false)
+  const { setPageContext } = useChatbotContext();
 
-  // === AGREGASI PER KABUPATEN UNTUK TOP5 ===
-  const kabupatenAggregates = useMemo(() => {
-    if (!data.length) return [];
-    const agg = data.reduce((acc, d) => {
-      const key = d.NAMA_KAB;
-      if (!acc[key]) {
-        acc[key] = {
-          nama_kab: key,
-          desa_count: 0,
-          total_ekonomi: 0,
-        };
-      }
-      acc[key].desa_count += 1;
-      acc[key].total_ekonomi += d.skor_ekonomi_total;
-      return acc;
-    }, {} as Record<string, any>);
+  // Helpers
+  const safeToFixed = (value: number | null, decimals = 1): string => {
+    if (value === null || value === undefined || isNaN(value)) return "N/A"
+    return Number(value).toFixed(decimals)
+  }
 
-    return Object.values(agg).map((kab: any) => ({
-      nama_kab: kab.nama_kab,
-      desa_count: kab.desa_count,
-      skor_rata_rata: kab.total_ekonomi / kab.desa_count,
-    }));
-  }, [data]);
-
-  // === GLOBAL INSIGHTS: Kabupaten/Kecamatan Terbaik & Terburuk ===
-  const [kabupatenTerbaik, kabupatenTerburuk] = useMemo(() => {
-    if (!kabupatenAggregates.length) return [null, null];
-    let best = kabupatenAggregates[0];
-    let worst = kabupatenAggregates[0];
-    kabupatenAggregates.forEach(kab => {
-      if (kab.skor_rata_rata > best.skor_rata_rata) best = kab;
-      if (kab.skor_rata_rata < worst.skor_rata_rata) worst = kab;
-    });
-    return [best, worst];
-  }, [kabupatenAggregates]);
-
-  // === TOP 5 PROVINSI (KABUPATEN) ===
-  const top5Ekonomi = useMemo(() => {
-    if (!data.length) return { terbaik: [], terburuk: [] };
-    
-    const byKab = data.reduce((acc, d) => {
-      const key = d.NAMA_KAB;
-      if (!acc[key]) acc[key] = { nama: key, total: 0, count: 0 };
-      acc[key].total += d.skor_ekonomi_total;
-      acc[key].count += 1;
-      return acc;
-    }, {} as Record<string, { nama: string; total: number; count: number }>);
-
-    const list = Object.values(byKab).map(k => ({
-      nama: k.nama,
-      skor: k.total / k.count,
-    }));
-
-    const sorted = [...list].sort((a, b) => b.skor - a.skor);
-    return {
-      terbaik: sorted.slice(0, 5),
-      terburuk: sorted.slice(-5).reverse(),
-    };
-  }, [data]);
-
-  // === DATA UNTUK ANALISIS PER KECAMATAN (abaikan desa) ===
-  const kecamatanData = useMemo(() => {
-    if (!data.length) return [];
-    let result = data;
-    if (selectedKab) result = result.filter(item => item.NAMA_KAB === selectedKab);
-    if (selectedKec) result = result.filter(item => item.NAMA_KEC === selectedKec);
-    return result;
-  }, [data, selectedKab, selectedKec]);
-
-  // === RINGKASAN NUMERIK UNTUK CHATBOT ===
-  const visibleDataSummary = useMemo(() => {
-    if (!data.length || !kecamatanData.length) return null;
-
-    const totalDesa = kecamatanData.length;
-    const avg = (key: keyof EkonomiData) =>
-      (kecamatanData.reduce((sum, d) => sum + (d[key] as number), 0) / totalDesa).toFixed(1);
-
-    let wilayah = "Provinsi Jawa Timur";
-    if (selectedKab && !selectedKec) wilayah = `Kabupaten ${selectedKab}`;
-    else if (selectedKab && selectedKec) wilayah = `Kecamatan ${selectedKec}, Kabupaten ${selectedKab}`;
-
-    // Cari desa terbaik & terburuk (hanya saat di level kecamatan)
-    let desaTerburuk: EkonomiData | null = null;
-    let desaTerbaik: EkonomiData | null = null;
-    let skorMin = Infinity;
-    let skorMax = -Infinity;
-
-    if (selectedKab && selectedKec) {
-      kecamatanData.forEach(des => {
-        const totalSkor = des.skor_ekonomi_total;
-        if (totalSkor < skorMin) {
-          skorMin = totalSkor;
-          desaTerburuk = des;
-        }
-        if (totalSkor > skorMax) {
-          skorMax = totalSkor;
-          desaTerbaik = des;
-        }
-      });
-    }
-
-    // Global insights
-    let globalInsights = null;
-    if (!selectedKab && !selectedKec) {
-      globalInsights = { kabupatenTerbaik, kabupatenTerburuk };
-    } else if (selectedKab && !selectedKec) {
-      const kecAgg = data
-        .filter(d => d.NAMA_KAB === selectedKab)
-        .reduce((acc, d) => {
-          const key = d.NAMA_KEC;
-          if (!acc[key]) {
-            acc[key] = { nama_kec: key, desa_count: 0, total_skor: 0 };
-          }
-          acc[key].desa_count += 1;
-          acc[key].total_skor += d.skor_ekonomi_total;
-          return acc;
-        }, {} as Record<string, any>);
-
-      const kecList = Object.values(kecAgg).map((kec: any) => ({
-        nama_kec: kec.nama_kec,
-        skor_rata_rata: kec.total_skor / kec.desa_count,
-      }));
-
-      let kecBest = kecList[0];
-      let kecWorst = kecList[0];
-      kecList.forEach(kec => {
-        if (kec.skor_rata_rata > kecBest.skor_rata_rata) kecBest = kec;
-        if (kec.skor_rata_rata < kecWorst.skor_rata_rata) kecWorst = kec;
-      });
-
-      globalInsights = {
-        kecamatanTerbaik: kecBest,
-        kecamatanTerburuk: kecWorst,
-      };
-    }
-
-    return {
-      wilayah,
-      jumlah_desa: totalDesa,
-      rata_rata_skor: {
-        kesejahteraan: parseFloat(avg("skor_kesejahteraan")),
-        bumdes: parseFloat(avg("skor_bumdes")),
-        koperasi: parseFloat(avg("skor_koperasi")),
-        industri: parseFloat(avg("skor_industri")),
-        akses_modal: parseFloat(avg("skor_akses_modal")),
-        infrastruktur_ekonomi: parseFloat(avg("skor_infrastruktur_ekonomi")),
-        ekonomi_total: parseFloat(avg("skor_ekonomi_total")),
-      },
-      distribusi_kluster: kecamatanData.reduce((acc, d) => {
-        acc[d.label] = (acc[d.label] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
-      desa_dengan_ekonomi_terburuk: desaTerburuk
-        ? {
-            nama_desa: (desaTerburuk as EkonomiData).NAMA_DESA,
-            nama_kecamatan: (desaTerburuk as EkonomiData).NAMA_KEC,
-            nama_kabupaten: (desaTerburuk as EkonomiData).NAMA_KAB,
-            skor_kesejahteraan: (desaTerburuk as EkonomiData).skor_kesejahteraan,
-            skor_bumdes: (desaTerburuk as EkonomiData).skor_bumdes,
-            skor_koperasi: (desaTerburuk as EkonomiData).skor_koperasi,
-            skor_industri: (desaTerburuk as EkonomiData).skor_industri,
-            skor_ekonomi_total: (desaTerburuk as EkonomiData).skor_ekonomi_total,
-            label_kluster: (desaTerburuk as EkonomiData).label,
-          }
-        : null,
-      desa_dengan_ekonomi_terbaik: desaTerbaik
-        ? {
-            nama_desa: (desaTerbaik as EkonomiData).NAMA_DESA,
-            nama_kecamatan: (desaTerbaik as EkonomiData).NAMA_KEC,
-            nama_kabupaten: (desaTerbaik as EkonomiData).NAMA_KAB,
-            skor_kesejahteraan: (desaTerbaik as EkonomiData).skor_kesejahteraan,
-            skor_bumdes: (desaTerbaik as EkonomiData).skor_bumdes,
-            skor_koperasi: (desaTerbaik as EkonomiData).skor_koperasi,
-            skor_industri: (desaTerbaik as EkonomiData).skor_industri,
-            skor_ekonomi_total: (desaTerbaik as EkonomiData).skor_ekonomi_total,
-            label_kluster: (desaTerbaik as EkonomiData).label,
-          }
-        : null,
-      globalInsights,
-      top5_terbaik: top5Ekonomi.terbaik,
-      top5_terburuk: top5Ekonomi.terburuk,
-    };
-  }, [kecamatanData, selectedKab, selectedKec, data, kabupatenTerbaik, kabupatenTerburuk]);
-
-  // === UPDATE PAGE CONTEXT UNTUK CHATBOT ===
-  useEffect(() => {
-    if (visibleDataSummary) {
-      setPageContext({
-        pageId: "ekonomi",
-        pageTitle: "Analisis Ekonomi",
-        filters: {
-          kabupaten: selectedKab || undefined,
-          kecamatan: selectedKec || undefined,
-          desa: selectedDesa || undefined,
-        },
-        visibleDataSummary,
-      });
-    }
-  }, [visibleDataSummary, selectedKab, selectedKec, selectedDesa, setPageContext]);
-
-  // === EFFECTS ===
-  useEffect(() => {
-    setPageContext({
-      pageId: "ekonomi",
-      pageTitle: "Analisis Ekonomi",
-      filters: {},
-      visibleDataSummary: { wilayah: "Provinsi Jawa Timur" },
-    });
-
-    // Reset saat keluar dari halaman
-    return () => {
-      setPageContext({
-        pageId: "overview",
-        pageTitle: "Overview",
-        filters: {},
-        visibleDataSummary: null,
-      });
-    };
-  }, [setPageContext]);
-
+  // Filter dependencies
   useEffect(() => {
     if (!selectedKab) {
       setKecamatanOptions([])
@@ -374,11 +154,9 @@ export default function EkonomiPage() {
   // Fetch data
   useEffect(() => {
     const fetchData = async () => {
-      // Gunakan klien yang sudah diimpor
       const { data, error } = await supabase
-        .from('cluster_ekonomi') // Ganti nama tabel sesuai kebutuhan
+        .from('cluster_ekonomi')
         .select('*');
-
       if (error) {
         console.error('Error fetching ', error);
         setData([]);
@@ -387,11 +165,10 @@ export default function EkonomiPage() {
       }
       setLoading(false);
     };
-
     fetchData();
   }, []);
 
-  // === DATA DINAMIS ===
+  // Active data (for stats & charts)
   const activeData = useMemo(() => {
     if (!data.length) return []
     let filtered = data
@@ -401,47 +178,41 @@ export default function EkonomiPage() {
     return filtered
   }, [data, selectedKab, selectedKec, selectedDesa])
 
-  // === DATA UNTUK TABEL: semua desa dalam kecamatan terpilih (abaikan selectedDesa) ===
-  const tableData = useMemo(() => {
-    if (!data.length) return []
-    let result = data
-    if (selectedKab) result = result.filter(item => item.NAMA_KAB === selectedKab)
-    if (selectedKec) result = result.filter(item => item.NAMA_KEC === selectedKec)
-    if (searchTerm) {
-      const s = searchTerm.toLowerCase()
-      result = result.filter(
-        item =>
-          item.NAMA_DESA.toLowerCase().includes(s) ||
-          item.NAMA_KEC.toLowerCase().includes(s) ||
-          item.NAMA_KAB.toLowerCase().includes(s) ||
-          item.label.toLowerCase().includes(s)
-      )
+  // Stats
+  const stats = useMemo(() => {
+    if (!activeData.length) {
+      return {
+        totalDesa: 0,
+        avgEkonomi: "0.0",
+        avgKesejahteraan: "0.0",
+        avgBUMDES: "0.0",
+      }
     }
-    return result
-  }, [data, selectedKab, selectedKec, searchTerm])
+    const total = activeData.length
+    const avgEkonomi = activeData.reduce((sum, d) => sum + d.skor_ekonomi_total, 0) / total
+    const avgKesejahteraan = activeData.reduce((sum, d) => sum + d.skor_kesejahteraan, 0) / total
+    const avgBUMDES = activeData.reduce((sum, d) => sum + d.jumlah_bumdes, 0) / total
+    return {
+      totalDesa: total,
+      avgEkonomi: safeToFixed(avgEkonomi),
+      avgKesejahteraan: safeToFixed(avgKesejahteraan),
+      avgBUMDES: safeToFixed(avgBUMDES),
+    }
+  }, [activeData])
 
-  // === PAGINASI TABEL ===
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-  const endIndex = startIndex + ITEMS_PER_PAGE
-  const paginatedData = useMemo(() => tableData.slice(startIndex, endIndex), [tableData, startIndex, endIndex])
-  const tableTotalPages = Math.ceil(tableData.length / ITEMS_PER_PAGE)
-
-  // === MAP MARKERS: HANYA SAMPAI LEVEL KECAMATAN (tapi tampilkan semua desa di kecamatan saat filter desa dipilih) ===
+  // Map markers
   const mapMarkers = useMemo(() => {
     if (!data.length) return []
-
-    if (!selectedKab && !selectedKec && !selectedDesa) {
-      // Tampilkan kabupaten
-      const kabupatenMap = new Map<string, { lat: number; lng: number; name: string; cluster: number; label: string }>()
+    if (!selectedKab) {
+      const kabupatenMap = new Map()
       data.forEach(item => {
-        if (!item.Latitude || !item.Longitude) return
-        if (!kabupatenMap.has(item.NAMA_KAB)) {
+        if (item.Latitude && item.Longitude && !kabupatenMap.has(item.NAMA_KAB)) {
           kabupatenMap.set(item.NAMA_KAB, {
             lat: item.Latitude,
             lng: item.Longitude,
             name: item.NAMA_KAB,
             cluster: item.cluster,
-            label: item.label
+            label: item.label,
           })
         }
       })
@@ -454,42 +225,37 @@ export default function EkonomiPage() {
         label: m.label,
       }))
     }
-
-    if (selectedKab && !selectedKec && !selectedDesa) {
-      // Tampilkan kecamatan
-      const kecamatanMap = new Map<string, { lat: number; lng: number; name: string; cluster: number; label: string }>()
+    if (selectedKab && !selectedKec) {
+      const kecamatanMap = new Map()
       data
         .filter(d => d.NAMA_KAB === selectedKab)
         .forEach(item => {
-          if (!item.Latitude || !item.Longitude) return
-          const key = `${item.NAMA_KAB}-${item.NAMA_KEC}`
-          if (!kecamatanMap.has(key)) {
-            kecamatanMap.set(key, {
-              lat: item.Latitude,
-              lng: item.Longitude,
-              name: item.NAMA_KEC,
-              cluster: item.cluster,
-              label: item.label
-            })
+          if (item.Latitude && item.Longitude) {
+            const key = `${item.NAMA_KAB}-${item.NAMA_KEC}`
+            if (!kecamatanMap.has(key)) {
+              kecamatanMap.set(key, {
+                lat: item.Latitude,
+                lng: item.Longitude,
+                name: item.NAMA_KEC,
+                kabupaten: item.NAMA_KAB,
+                cluster: item.cluster,
+                label: item.label,
+              })
+            }
           }
         })
       return Array.from(kecamatanMap.values()).map(m => ({
         name: m.name,
         position: [m.lat, m.lng] as [number, number],
-        kabupaten: selectedKab,
+        kabupaten: m.kabupaten,
         kecamatan: m.name,
         cluster: m.cluster,
         label: m.label,
       }))
     }
-
-    // Jika kabupaten + kecamatan dipilih → tampilkan semua desa di kecamatan itu
-    // Termasuk saat desa dipilih → tetap tampilkan semua desa di kecamatan itu
     if (selectedKab && selectedKec) {
-      const targetDesa = data.find(d => d.NAMA_DESA === selectedDesa)
-      const kec = targetDesa ? targetDesa.NAMA_KEC : selectedKec
       return data
-        .filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === kec && d.Latitude && d.Longitude)
+        .filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec && d.Latitude && d.Longitude)
         .map(m => ({
           name: m.NAMA_DESA,
           position: [m.Latitude, m.Longitude] as [number, number],
@@ -501,42 +267,19 @@ export default function EkonomiPage() {
           label: m.label,
         }))
     }
+    return []
+  }, [data, selectedKab, selectedKec])
 
-    return data
-      .filter(d => d.Latitude && d.Longitude)
-      .map(m => ({
-        name: m.NAMA_DESA,
-        position: [m.Latitude, m.Longitude] as [number, number],
-        kabupaten: m.NAMA_KAB,
-        kecamatan: m.NAMA_KEC,
-        skorEkonomi: m.skor_ekonomi_total,
-        skorKesejahteraan: m.skor_kesejahteraan,
-        cluster: m.cluster,
-        label: m.label,
-      }))
-  }, [data, selectedKab, selectedKec, selectedDesa])
-
-  // === CHART DATA: Tampilkan unit yang sesuai dengan filter aktif ===
+  // Chart data
   const chartData = useMemo(() => {
     if (!data.length) return { data: [], label: "Data" }
-
-    if (selectedKab && selectedKec && selectedDesa) {
-      // Hanya satu desa
-      const desaItem = data.find(d => d.NAMA_DESA === selectedDesa)
-      if (!desaItem) return { data: [], label: "Desa" }
-      return {
-        data: [{ name: desaItem.NAMA_DESA, skor: Number(desaItem.skor_ekonomi_total.toFixed(1)) }],
-        label: "Desa"
-      }
-    } else if (selectedKab && selectedKec) {
-      // Semua desa di kecamatan
+    if (selectedKab && selectedKec) {
       const desaData = data.filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec)
       return {
         data: desaData.map(d => ({ name: d.NAMA_DESA, skor: Number(d.skor_ekonomi_total.toFixed(1)) })),
         label: "Desa"
       }
     } else if (selectedKab) {
-      // Semua kecamatan di kabupaten
       const grouped = data
         .filter(d => d.NAMA_KAB === selectedKab)
         .reduce((acc, item) => {
@@ -552,7 +295,6 @@ export default function EkonomiPage() {
         .map(item => ({ name: item.name, skor: Number((item.totalSkor / item.count).toFixed(1)) }))
       return { data: grouped, label: "Kecamatan" }
     } else {
-      // Semua kabupaten
       const grouped = data
         .reduce((acc, item) => {
           const existing = acc.find(x => x.name === item.NAMA_KAB)
@@ -567,34 +309,11 @@ export default function EkonomiPage() {
         .map(item => ({ name: item.name, skor: Number((item.totalSkor / item.count).toFixed(1)) }))
       return { data: grouped, label: "Kabupaten" }
     }
-  }, [data, selectedKab, selectedKec, selectedDesa])
+  }, [data, selectedKab, selectedKec])
 
-  // === SEKTOR DOMINAN CHART ===
-  const sektorDominanDistribution = useMemo(() => {
-    if (!activeData.length) return []
-    // Hitung jumlah desa per grup_sektor
-    const distribution = activeData.reduce((acc, item) => {
-      const key = item.grup_sektor || "Tidak Diketahui"; // Jika null/undefined, gunakan label default
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    
-    // Konversi ke format yang bisa digunakan oleh PieChart
-    return Object.entries(distribution).map(([name, value]) => ({ name, value }));
-  }, [activeData]);
-
-  // === Kesejahteraan Chart ===
   const kesejahteraanChartData = useMemo(() => {
     if (!data.length) return { data: [], label: "Data" }
-
-    if (selectedKab && selectedKec && selectedDesa) {
-      const desaItem = data.find(d => d.NAMA_DESA === selectedDesa)
-      if (!desaItem) return { data: [], label: "Desa" }
-      return {
-        data: [{ name: desaItem.NAMA_DESA, skor: Number(desaItem.skor_kesejahteraan.toFixed(1)) }],
-        label: "Desa"
-      }
-    } else if (selectedKab && selectedKec) {
+    if (selectedKab && selectedKec) {
       const desaData = data.filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec)
       return {
         data: desaData.map(d => ({ name: d.NAMA_DESA, skor: Number(d.skor_kesejahteraan.toFixed(1)) })),
@@ -630,9 +349,8 @@ export default function EkonomiPage() {
         .map(item => ({ name: item.name, skor: Number((item.totalSkor / item.count).toFixed(1)) }))
       return { data: grouped, label: "Kabupaten" }
     }
-  }, [data, selectedKab, selectedKec, selectedDesa])
+  }, [data, selectedKab, selectedKec])
 
-  // === SECTOR & KOMPONEN CHARTS ===
   const sectorChartData = useMemo(() => {
     if (!activeData.length) return []
     const avg = (key: keyof EkonomiData) => {
@@ -660,14 +378,14 @@ export default function EkonomiPage() {
     ]
   }, [activeData])
 
-  const infrastrukturEkonomiData = useMemo(() => {
+  const sektorDominanDistribution = useMemo(() => {
     if (!activeData.length) return []
-    return [{
-      name: "Infrastruktur Ekonomi",
-      avg: Number(
-        (activeData.reduce((sum, item) => sum + item.skor_infrastruktur_ekonomi, 0) / activeData.length).toFixed(1)
-      )
-    }]
+    const distribution = activeData.reduce((acc, item) => {
+      const key = item.grup_sektor || "Tidak Diketahui";
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    return Object.entries(distribution).map(([name, value]) => ({ name, value }));
   }, [activeData])
 
   const clusterDistribution = useMemo(() => {
@@ -683,396 +401,347 @@ export default function EkonomiPage() {
     )
   }, [activeData])
 
-  const stats = useMemo(() => {
-    if (!activeData.length) {
-      return {
-        totalDesa: 0,
-        avgEkonomi: "0.0",
-        avgKesejahteraan: "0.0",
-        avgBUMDES: "0.0",
-      }
-    }
+  const visibleDataSummary = useMemo(() => {
+    if (!activeData.length) return null
+    const totalDesa = activeData.length
+    const avg = (key: keyof EkonomiData) =>
+      (activeData.reduce((sum, d) => sum + (d[key] as number), 0) / totalDesa).toFixed(1)
+
+    let wilayah = "Provinsi Jawa Timur"
+    if (selectedKab && !selectedKec) wilayah = `Kabupaten ${selectedKab}`
+    else if (selectedKab && selectedKec) wilayah = `Kecamatan ${selectedKec}, Kabupaten ${selectedKab}`
+
     return {
-      totalDesa: activeData.length,
-      avgEkonomi: (activeData.reduce((sum, item) => sum + item.skor_ekonomi_total, 0) / activeData.length).toFixed(1),
-      avgKesejahteraan: (activeData.reduce((sum, item) => sum + item.skor_kesejahteraan, 0) / activeData.length).toFixed(1),
-      avgBUMDES: (activeData.reduce((sum, item) => sum + item.jumlah_bumdes, 0) / activeData.length).toFixed(1),
+      wilayah,
+      jumlah_desa: totalDesa,
+      rata_rata_skor: {
+        kesejahteraan: parseFloat(avg("skor_kesejahteraan")),
+        bumdes: parseFloat(avg("skor_bumdes")),
+        koperasi: parseFloat(avg("skor_koperasi")),
+        industri: parseFloat(avg("skor_industri")),
+        akses_modal: parseFloat(avg("skor_akses_modal")),
+        infrastruktur_ekonomi: parseFloat(avg("skor_infrastruktur_ekonomi")),
+        ekonomi_total: parseFloat(avg("skor_ekonomi_total")),
+      },
+      distribusi_kluster: activeData.reduce((acc, d) => {
+        acc[d.label] = (acc[d.label] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
     }
-  }, [activeData])
+  }, [activeData, selectedKab, selectedKec])
+
+  useEffect(() => {
+    if (visibleDataSummary) {
+      setPageContext({
+        pageId: "ekonomi",
+        pageTitle: "Analisis Ekonomi",
+        filters: {
+          kabupaten: selectedKab || undefined,
+          kecamatan: selectedKec || undefined,
+          desa: selectedDesa || undefined,
+        },
+        visibleDataSummary,
+      });
+    }
+  }, [visibleDataSummary, selectedKab, selectedKec, selectedDesa, setPageContext]);
+
+  useEffect(() => {
+    setPageContext({
+      pageId: "ekonomi",
+      pageTitle: "Analisis Ekonomi",
+      filters: {},
+      visibleDataSummary: { wilayah: "Provinsi Jawa Timur" },
+    });
+    return () => {
+      setPageContext({
+        pageId: "overview",
+        pageTitle: "Overview",
+        filters: {},
+        visibleDataSummary: null,
+      });
+    };
+  }, [setPageContext]);
 
   if (loading) {
-    return <div className="p-4 sm:p-6 text-black">Loading...</div>
+    return (
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#324D3E] mx-auto mb-4"></div>
+          <p className="text-gray-600">Memuat data dari server...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-2 p-2 sm:p-2">
+    <div className="min-h-screen from-gray-50 to-gray-100">
       {/* STICKY HEADER */}
-      <div className="sticky top-0 z-50 backdrop-blur-sm border-b border-[#c9ece7] px-4 sm:px-6 py-4 -mx-4 sm:-mx-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-black mb-2">Dashboard Ekonomi Desa</h1>
-            <p className="text-sm sm:text-base text-gray-600">Data kluster ekonomi dan usaha per desa</p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 flex-wrap justify-end">
-            <div className="flex flex-col gap-1 w-full sm:w-auto">
-              <label className="text-xs font-bold text-gray-600">Filter Kabupaten</label>
-              <select
-                value={selectedKab}
-                onChange={(e) => setSelectedKab(e.target.value)}
-                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
-              >
-                <option value="">Semua Kabupaten</option>
-                {[...new Set(data.map(d => d.NAMA_KAB))].sort().map(kab => (
-                  <option key={kab} value={kab}>{kab}</option>
-                ))}
-              </select>
+      <div className="sticky top-0 z-[999] backdrop-blur-sm shadow-sm border-b border-gray-200">
+        <div className="px-3 sm:px-5 py-3 sm:py-4">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-gray-900 truncate">
+                Dashboard Ekonomi Desa
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                Data kluster ekonomi dan usaha per desa
+              </p>
             </div>
-
-            <div className="flex flex-col gap-1 w-full sm:w-auto">
-              <label className="text-xs font-bold text-gray-600">Filter Kecamatan</label>
-              <select
-                value={selectedKec}
-                onChange={(e) => setSelectedKec(e.target.value)}
-                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
-                disabled={!selectedKab}
-              >
-                <option value="">Semua Kecamatan</option>
-                {kecamatanOptions.map(kec => (
-                  <option key={kec} value={kec}>{kec}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1 w-full sm:w-auto">
-              <label className="text-xs font-bold text-gray-600">Filter Desa</label>
-              <select
-                value={selectedDesa}
-                onChange={(e) => setSelectedDesa(e.target.value)}
-                className="px-3 py-2 bg-white border border-[#c9ece7] rounded-md text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
-                disabled={!selectedKec}
-              >
-                <option value="">Semua Desa</option>
-                {desaOptions.map(desa => (
-                  <option key={desa} value={desa}>{desa}</option>
-                ))}
-              </select>
-            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="ml-3 px-3 py-2 bg-[#324D3E] text-white rounded-lg text-sm font-medium hover:bg-[#5A7A60] transition-colors flex items-center gap-2 shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              <span className="hidden sm:inline">Filter</span>
+            </button>
           </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
-          <p className="text-black text-xs sm:text-sm font-medium">Total Desa</p>
-          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.totalDesa}</p>
-        </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
-          <p className="text-black text-xs sm:text-sm font-medium">Rata-rata Skor Ekonomi</p>
-          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgEkonomi}</p>
-        </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
-          <p className="text-black text-xs sm:text-sm font-medium">Rata-rata Kesejahteraan</p>
-          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgKesejahteraan}</p>
-        </div>
-        <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4">
-          <p className="text-black text-xs sm:text-sm font-medium">Rata-rata BUMDES</p>
-          <p className="text-2xl sm:text-3xl font-bold text-black mt-1">{stats.avgBUMDES}</p>
-        </div>
-      </div>
-
-      {/* Map */}
-      <div className="border border-[#c9ece7] rounded-lg bg-white/80 backdrop-blur-sm overflow-hidden">
-        <h2 className="text-base sm:text-lg font-semibold text-black p-3 pb-2">Sebaran Desa ({mapMarkers.length} desa)</h2>
-        <div className="h-64 sm:h-80 w-full">
-          <MapComponent
-            markers={mapMarkers}
-            renderTooltip={(marker) => (
-              <>
-                <div className="font-semibold">{marker.name}</div>
-                {marker.kecamatan && <div>Kec. {marker.kecamatan}</div>}
-                {marker.kabupaten && <div>Kab. {marker.kabupaten}</div>}
-                {marker.skorEkonomi !== undefined && (
-                  <div>Skor Ekonomi: {marker.skorEkonomi.toFixed(1)}</div>
-                )}
-                {marker.label && <div>{marker.label}</div>}
-              </>
-            )}
-          />
-        </div>
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 gap-4 sm:gap-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {/* Chart 1: Skor Ekonomi */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">
-              Skor Ekonomi per {chartData.label}
-            </h2>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <BarChart data={chartData.data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={60} fontSize={10} />
-                <YAxis stroke="#666" />
-                <Tooltip />
-                <Bar dataKey="skor" fill="#324D3E" name="Skor Ekonomi" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Chart 2: Skor Kesejahteraan */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">
-              Skor Kesejahteraan per {kesejahteraanChartData.label}
-            </h2>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <BarChart data={kesejahteraanChartData.data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="name" stroke="#666" angle={-45} textAnchor="end" height={60} fontSize={10} />
-                <YAxis stroke="#666" />
-                <Tooltip />
-                <Bar dataKey="skor" fill="#728A6E" name="Skor Kesejahteraan" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {/* Chart 3: Sektor Ekonomi */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Sektor Ekonomi (Rata-rata)</h2>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <BarChart layout="vertical" data={sectorChartData} margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis type="number" stroke="#666" fontSize={12} />
-                <YAxis dataKey="name" type="category" stroke="#666" fontSize={12} />
-                <Tooltip />
-                <Bar dataKey="avg" fill="#8EA48B" name="Rata-rata" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Chart 4: Komponen Ekonomi */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Skor Komponen Ekonomi</h2>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <BarChart data={komponenEkonomiData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="name" stroke="#666" fontSize={12} />
-                <YAxis stroke="#666" fontSize={12} />
-                <Tooltip />
-                <Bar dataKey="avg" fill="#B3C8A1" name="Rata-rata" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {/* Chart 5: Distribusi Sektor Dominan */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Distribusi Sektor Ekonomi</h2>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <PieChart>
-                <Pie
-                  data={sektorDominanDistribution}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {sektorDominanDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Chart 6: Distribusi Kluster */}
-          <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Distribusi Kluster Ekonomi</h2>
-            <ResponsiveContainer width="100%" height={300} className="sm:h-64">
-              <PieChart>
-                <Pie
-                  data={clusterDistribution}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={renderCustomLabel}
-                  outerRadius={80}
-                  dataKey="value"
-                >
-                  {clusterDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Table & Pagination */}
-      <div className="border border-[#c9ece7] bg-white/80 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
-          <h2 className="text-base sm:text-lg font-semibold text-black">
-            Detail Ekonomi Desa ({tableData.length.toLocaleString()} hasil)
-          </h2>
-          <input
-            type="text"
-            placeholder="Cari nama desa, label, kabupaten, atau kecamatan ..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value)
-              setCurrentPage(1)
-            }}
-            className="px-3 py-2 sm:px-4 sm:py-2 border border-[#c9ece7] rounded-lg bg-white text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] w-full"
-          />
-        </div>
-
-        {/* Tabel untuk Mobile */}
-        <div className="sm:hidden">
-          {paginatedData.length > 0 ? (
-            paginatedData.map((item, index) => (
-              <div key={item.NAMA_DESA + index} className="border-b border-[#e0e0e0] pb-4 mb-4 last:border-0 last:pb-0 last:mb-0">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-black font-medium">{item.NAMA_DESA}</p>
-                    <p className="text-gray-600 text-sm">{item.NAMA_KEC}, {item.NAMA_KAB}</p>
-                  </div>
-                  <span
-                    className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                      item.cluster === 0
-                        ? "bg-green-900 text-green-200"
-                        : item.cluster === 1
-                        ? "bg-yellow-900 text-yellow-200"
-                        : "bg-red-900 text-red-200"
-                    }`}
+          {showFilters && (
+            <div className="space-y-2 sm:space-y-3 pt-3 border-t border-gray-200 animate-in slide-in-from-top duration-200">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Kabupaten</label>
+                  <select
+                    value={selectedKab}
+                    onChange={(e) => setSelectedKab(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent"
                   >
-                    {item.label}
-                  </span>
+                    <option value="">Semua Kabupaten</option>
+                    {[...new Set(data.map(d => d.NAMA_KAB))].sort().map(kab => (
+                      <option key={kab} value={kab}>{kab}</option>
+                    ))}
+                  </select>
                 </div>
-                <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                  <div>Total KK: {item.total_kk}</div>
-                  <div>Kesejahteraan: {item.skor_kesejahteraan.toFixed(1)}</div>
-                  <div>BUMDES: {item.skor_bumdes.toFixed(1)}</div>
-                  <div>Koperasi: {item.skor_koperasi.toFixed(1)}</div>
-                  <div>Industri: {item.skor_industri.toFixed(1)}</div>
-                  <div>Total Skor: {item.skor_ekonomi_total.toFixed(1)}</div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Kecamatan</label>
+                  <select
+                    value={selectedKec}
+                    onChange={(e) => setSelectedKec(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    disabled={!selectedKab}
+                  >
+                    <option value="">Semua Kecamatan</option>
+                    {kecamatanOptions.map(kec => (
+                      <option key={kec} value={kec}>{kec}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Desa</label>
+                  <select
+                    value={selectedDesa}
+                    onChange={(e) => setSelectedDesa(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    disabled={!selectedKec}
+                  >
+                    <option value="">Semua Desa</option>
+                    {desaOptions.map(desa => (
+                      <option key={desa} value={desa}>{desa}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            ))
-          ) : (
-            <p className="text-center text-gray-500 py-4">Tidak ada data ditemukan</p>
+              {(selectedKab || selectedKec || selectedDesa) && (
+                <button
+                  onClick={() => {
+                    setSelectedKab("")
+                    setSelectedKec("")
+                    setSelectedDesa("")
+                  }}
+                  className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Reset Filter
+                </button>
+              )}
+            </div>
           )}
         </div>
+      </div>
 
-        {/* Tabel untuk Desktop */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-[#c9ece7] bg-gray-50">
-                {["No", "Kabupaten", "Kecamatan", "Desa", "Total KK", "Kesejahteraan", "BUMDES", "Koperasi", "Industri", "Total Skor", "Label"]
-                  .map((h, i) => (
-                    <th key={i} className="px-3 py-2 text-left text-black font-semibold text-xs sm:text-sm">{h}</th>
-                  ))}
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedData.length > 0 ? (
-                paginatedData.map((item, index) => (
-                  <tr key={item.NAMA_DESA + index} className="border-b border-[#e0e0e0] hover:bg-gray-50 transition-colors">
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{startIndex + index + 1}</td>
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.NAMA_KAB}</td>
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.NAMA_KEC}</td>
-                    <td className="px-3 py-2 text-black font-medium text-xs sm:text-sm">{item.NAMA_DESA}</td>
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.total_kk}</td>
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.skor_kesejahteraan.toFixed(1)}</td>
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.skor_bumdes.toFixed(1)}</td>
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.skor_koperasi.toFixed(1)}</td>
-                    <td className="px-3 py-2 text-black text-xs sm:text-sm">{item.skor_industri.toFixed(1)}</td>
-                    <td className="px-3 py-2 text-black font-semibold text-xs sm:text-sm">{item.skor_ekonomi_total.toFixed(1)}</td>
-                    <td className="px-3 py-2 text-xs sm:text-sm">
-                      <span
-                        className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                          item.cluster === 0
-                            ? "bg-green-900 text-green-200"
-                            : item.cluster === 1
-                            ? "bg-yellow-900 text-yellow-200"
-                            : "bg-red-900 text-red-200"
-                        }`}
-                      >
-                        {item.label}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={11} className="px-3 py-4 text-center text-gray-500 text-xs sm:text-sm">
-                    Tidak ada data ditemukan
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      <div className="px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {[
+            { label: "Total Desa", value: stats.totalDesa, color: "from-emerald-200 to-emerald-700" },
+            { label: "Rata-rata Skor Ekonomi", value: stats.avgEkonomi, color: "from-green-500 to-green-600" },
+            { label: "Rata-rata Kesejahteraan", value: stats.avgKesejahteraan, color: "from-teal-500 to-teal-600" },
+            { label: "Rata-rata BUMDES", value: stats.avgBUMDES, color: "from-cyan-500 to-cyan-600" },
+          ].map((stat, idx) => (
+            <div key={idx} className={`bg-gradient-to-br ${stat.color} rounded-xl p-4 shadow-lg text-white`}>
+              <p className="text-xs sm:text-sm font-medium opacity-90 mb-1">{stat.label}</p>
+              <p className="text-2xl sm:text-3xl font-bold">{stat.value}</p>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-4 pt-4 border-t border-[#c9ece7] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="text-xs sm:text-sm text-black">
-            Menampilkan {paginatedData.length > 0 ? startIndex + 1 : 0} hingga{" "}
-            {Math.min(endIndex, tableData.length)} dari {tableData.length} data
+        {/* Map */}
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+              Sebaran Desa ({mapMarkers.length} lokasi)
+            </h2>
           </div>
-          <div className="flex items-center gap-1 sm:gap-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 sm:px-4 sm:py-2 border border-[#c9ece7] rounded text-xs sm:text-sm text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-            >
-              Sebelumnya
-            </button>
+          <div className="h-56 sm:h-80 md:h-96">
+            <MapComponent
+              markers={mapMarkers}
+              renderTooltip={(marker) => (
+                <div className="text-sm">
+                  <div className="font-semibold text-gray-900">{marker.name}</div>
+                  {marker.kecamatan && <div className="text-gray-600">Kec. {marker.kecamatan}</div>}
+                  {marker.kabupaten && <div className="text-gray-600">Kab. {marker.kabupaten}</div>}
+                  {marker.skorEkonomi !== undefined && (
+                    <div className="text-gray-700">Skor Ekonomi: {marker.skorEkonomi.toFixed(1)}</div>
+                  )}
+                  {marker.label && (
+                    <div className="mt-1 px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-medium inline-block">
+                      {marker.label}
+                    </div>
+                  )}
+                </div>
+              )}
+            />
+          </div>
+        </div>
 
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, tableTotalPages) }, (_, i) => {
-                let pageNum
-                if (tableTotalPages <= 5) {
-                  pageNum = i + 1
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1
-                } else if (currentPage >= tableTotalPages - 2) {
-                  pageNum = tableTotalPages - 4 + i
-                } else {
-                  pageNum = currentPage - 2 + i
-                }
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`px-2 py-1 sm:px-3 sm:py-2 rounded text-xs sm:text-sm ${
-                      currentPage === pageNum
-                        ? "bg-green-600 text-white"
-                        : "border border-gray-300 text-black hover:bg-gray-100"
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                )
-              })}
+        {/* Charts */}
+        <div className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                  Skor Ekonomi per {chartData.label}
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={chartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" stroke="#6b7280" angle={-45} textAnchor="end" height={80} fontSize={10} interval={0} />
+                    <YAxis stroke="#6b7280" fontSize={12} />
+                    <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }} />
+                    <Bar dataKey="skor" fill="#324D3E" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                  Skor Kesejahteraan per {kesejahteraanChartData.label}
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={kesejahteraanChartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" stroke="#6b7280" angle={-45} textAnchor="end" height={80} fontSize={10} interval={0} />
+                    <YAxis stroke="#6b7280" fontSize={12} />
+                    <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }} />
+                    <Bar dataKey="skor" fill="#5A7A60" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
 
-            <button
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, tableTotalPages))}
-              disabled={currentPage === tableTotalPages}
-              className="px-3 py-1 sm:px-4 sm:py-2 border border-[#c9ece7] rounded text-xs sm:text-sm text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-            >
-              Selanjutnya
-            </button>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                  Sektor Ekonomi (Rata-rata)
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart layout="vertical" data={sectorChartData} margin={{ left: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis type="number" stroke="#6b7280" fontSize={12} />
+                    <YAxis dataKey="name" type="category" stroke="#6b7280" fontSize={12} />
+                    <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }} />
+                    <Bar dataKey="avg" fill="#728A6E" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                  Skor Komponen Ekonomi
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={komponenEkonomiData} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
+                    <YAxis stroke="#6b7280" fontSize={12} />
+                    <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }} />
+                    <Bar dataKey="avg" fill="#8EA48B" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                  Distribusi Sektor Ekonomi
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={sektorDominanDistribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      dataKey="value"
+                    >
+                      {sektorDominanDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                  Distribusi Kluster Ekonomi
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={clusterDistribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={renderCustomLabel}
+                      outerRadius={80}
+                      dataKey="value"
+                    >
+                      {clusterDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </div>
         </div>
       </div>
