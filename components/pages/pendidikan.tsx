@@ -755,7 +755,7 @@ export default function PendidikanPage() {
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={skorComponentChartData} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
+                  <BarChart data={skorComponentChartData} margin={{ top: 5, right: 10, left: -10, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis 
                       dataKey="name" 
@@ -790,7 +790,7 @@ export default function PendidikanPage() {
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={chartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
+                  <BarChart data={chartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis 
                       dataKey="name" 
@@ -828,7 +828,7 @@ export default function PendidikanPage() {
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
+                  <PieChart margin={{bottom:20}}>
                     <Pie
                       data={categoryDistribution}
                       cx="50%"
@@ -865,7 +865,7 @@ export default function PendidikanPage() {
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={fasilitasChartData} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
+                  <BarChart data={fasilitasChartData} margin={{ top: 5, right: 10, left: -10, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis 
                       dataKey="name" 

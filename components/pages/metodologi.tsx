@@ -67,7 +67,7 @@ export default function Metodologi() {
             </ul>
           </div>
           <div>
-            <h3 className="text-blackfont-semibold mb-2">Backend</h3>
+            <h3 className="text-black font-semibold mb-2">Backend</h3>
             <ul className="text-black-300 text-sm space-y-1">
               <li>• Node.js / Express</li>
               <li>• Google Gemini API</li>
@@ -76,10 +76,9 @@ export default function Metodologi() {
             </ul>
           </div>
           <div>
-            <h3 className="text-balck font-semibold mb-2">Machine Learning</h3>
+            <h3 className="text-black font-semibold mb-2">Machine Learning</h3>
             <ul className="text-black-300 text-sm space-y-1">
               <li>• K-Means Clustering</li>
-              <li>• PCA (Principal Component Analysis)</li>
               <li>• LSTM Neural Network</li>
               <li>• Scikit-learn</li>
             </ul>
@@ -89,7 +88,7 @@ export default function Metodologi() {
             <ul className="text-black-300 text-sm space-y-1">
               <li>• CSV Data Loading</li>
               <li>• Data Normalization</li>
-              <li>• Feature Scaling</li>
+              <li>• Feature Engineering</li>
               <li>• Pandas / NumPy</li>
             </ul>
           </div>
@@ -104,7 +103,7 @@ export default function Metodologi() {
             <div className="w-8 h-8 rounded-full bg-green-900 flex items-center justify-center text-white font-bold">
               1
             </div>
-            <p className="text-black-300">Data dikumpulkan dari berbagai sumber</p>
+            <p className="text-black-300">Data diambil dari data BPS</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="w-8 h-8 rounded-full bg-green-900 flex items-center justify-center text-white font-bold">
@@ -122,7 +121,7 @@ export default function Metodologi() {
             <div className="w-8 h-8 rounded-full bg-green-900 flex items-center justify-center text-white font-bold">
               4
             </div>
-            <p className="text-black-300">Model machine learning dikembangkan</p>
+            <p className="text-black-300">Model machine learning (Clustering) dikembangkan</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="w-8 h-8 rounded-full bg-green-900 flex items-center justify-center text-white font-bold">

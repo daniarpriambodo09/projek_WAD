@@ -16,6 +16,7 @@ import {
 } from "recharts"
 import { useChatbotContext } from '@/context/ChatbotContext';
 import { supabase } from "@/lib/supabaseClient";
+
 interface EkonomiData {
   NAMA_KAB: string
   NAMA_KEC: string
@@ -696,13 +697,13 @@ export default function EkonomiPage() {
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
+                  <PieChart margin={{bottom:20}}>
                     <Pie
                       data={sektorDominanDistribution}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={renderCustomLabel}
                       outerRadius={80}
                       dataKey="value"
                     >
@@ -723,7 +724,7 @@ export default function EkonomiPage() {
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
+                  <PieChart margin={{bottom:20}}>
                     <Pie
                       data={clusterDistribution}
                       cx="50%"

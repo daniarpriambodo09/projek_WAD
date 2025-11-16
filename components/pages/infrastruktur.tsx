@@ -622,7 +622,7 @@ export default function Infrastruktur() {
         fill="#12201A"
         textAnchor={anchor}
         dominantBaseline="central"
-        fontSize={10}
+        fontSize={12}
       >
         {lines.map((line: string, i: number) => (
           <tspan key={i} x={x} dy={i === 0 ? 0 : "1em"}>
@@ -681,9 +681,9 @@ export default function Infrastruktur() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen from-gray-50 to-gray-100">
       {/* STICKY HEADER - Mobile Optimized */}
-      <div className="sticky top-0 z-[999] bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-200">
+      <div className="sticky top-0 z-[999] backdrop-blur-md shadow-sm border-b border-gray-200">
         <div className="px-3 sm:px-6 py-3 sm:py-4">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0">
@@ -829,14 +829,14 @@ export default function Infrastruktur() {
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
+                  <PieChart margin={{bottom:10}}>
                     <Pie
                       data={clusterDistribution}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
                       label={renderCustomLabel}
-                      outerRadius={60}
+                      outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
                     >
@@ -880,7 +880,7 @@ export default function Infrastruktur() {
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={chartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 60 }}>
+                  <BarChart data={chartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis 
                       dataKey="name" 
@@ -946,14 +946,14 @@ export default function Infrastruktur() {
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
+                  <PieChart margin={{bottom:10}}>
                     <Pie
                       data={peneranganJalanChartData}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
                       label={renderCustomLabel}
-                      outerRadius={60}
+                      outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
                     >
@@ -986,14 +986,14 @@ export default function Infrastruktur() {
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
+                  <PieChart margin={{bottom:10}}>
                     <Pie
                       data={sanitasiLayakChartData}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
                       label={renderCustomLabel}
-                      outerRadius={60}
+                      outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
                     >
@@ -1040,196 +1040,6 @@ export default function Infrastruktur() {
                 </ResponsiveContainer>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Table Section - Mobile Optimized */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-                Detail Infrastruktur Desa
-                <span className="ml-2 text-sm font-normal text-gray-600">
-                  ({tableData.length.toLocaleString()} desa)
-                </span>
-              </h2>
-              <input
-                type="text"
-                placeholder="Cari desa..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value)
-                  setCurrentPage(1)
-                }}
-                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent w-full sm:w-64"
-              />
-            </div>
-          </div>
-
-          <div className="p-3 sm:p-4">
-            {/* Mobile Card View */}
-            <div className="lg:hidden space-y-3">
-              {paginatedData.length > 0 ? (
-                paginatedData.map((item, index) => (
-                  <div key={item.NAMA_DESA + index} className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 truncate">{item.NAMA_DESA}</p>
-                        <p className="text-xs text-gray-600 mt-0.5">
-                          {item.NAMA_KEC}, {item.NAMA_KAB}
-                        </p>
-                      </div>
-                      <span className="ml-2 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 shrink-0">
-                        {item.label_infrastruktur}
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 mt-3 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Listrik:</span>
-                        <span className="font-medium text-gray-900">{item.skor_listrik.toFixed(1)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Sanitasi:</span>
-                        <span className="font-medium text-gray-900">{item.skor_sanitasi.toFixed(1)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Air:</span>
-                        <span className="font-medium text-gray-900">{item.skor_air.toFixed(1)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Transportasi:</span>
-                        <span className="font-medium text-gray-900">{item.skor_transportasi.toFixed(1)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Digital:</span>
-                        <span className="font-medium text-gray-900">{item.skor_digital.toFixed(1)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Aksesibilitas:</span>
-                        <span className="font-medium text-gray-900">{item.skor_aksesibilitas.toFixed(1)}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <svg className="mx-auto h-12 w-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                  </svg>
-                  <p>Tidak ada data ditemukan</p>
-                </div>
-              )}
-            </div>
-
-            {/* Desktop Table View */}
-            <div className="hidden lg:block overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700">No</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700">Kabupaten</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700">Kecamatan</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700">Desa</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700">Listrik</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700">Sanitasi</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700">Air</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700">Transportasi</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700">Digital</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700">Aksesibilitas</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700">Label</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {paginatedData.length > 0 ? (
-                    paginatedData.map((item, index) => (
-                      <tr key={item.NAMA_DESA + index} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-3 py-3 text-sm text-gray-900">{startIndex + index + 1}</td>
-                        <td className="px-3 py-3 text-sm text-gray-900">{item.NAMA_KAB}</td>
-                        <td className="px-3 py-3 text-sm text-gray-900">{item.NAMA_KEC}</td>
-                        <td className="px-3 py-3 text-sm font-medium text-gray-900">{item.NAMA_DESA}</td>
-                        <td className="px-3 py-3 text-sm text-gray-900">{item.skor_listrik.toFixed(1)}</td>
-                        <td className="px-3 py-3 text-sm text-gray-900">{item.skor_sanitasi.toFixed(1)}</td>
-                        <td className="px-3 py-3 text-sm text-gray-900">{item.skor_air.toFixed(1)}</td>
-                        <td className="px-3 py-3 text-sm text-gray-900">{item.skor_transportasi.toFixed(1)}</td>
-                        <td className="px-3 py-3 text-sm text-gray-900">{item.skor_digital.toFixed(1)}</td>
-                        <td className="px-3 py-3 text-sm text-gray-900">{item.skor_aksesibilitas.toFixed(1)}</td>
-                        <td className="px-3 py-3 text-sm">
-                          <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {item.label_infrastruktur}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={11} className="px-3 py-8 text-center text-gray-500">
-                        Tidak ada data ditemukan
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {tableTotalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t border-gray-200">
-                <div className="text-xs sm:text-sm text-gray-600">
-                  Menampilkan {paginatedData.length > 0 ? startIndex + 1 : 0} - {Math.min(endIndex, tableData.length)} dari {tableData.length.toLocaleString()}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-
-                  <div className="flex gap-1">
-                    {Array.from({ length: Math.min(5, tableTotalPages) }, (_, i) => {
-                      let pageNum
-                      if (tableTotalPages <= 5) {
-                        pageNum = i + 1
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1
-                      } else if (currentPage >= tableTotalPages - 2) {
-                        pageNum = tableTotalPages - 4 + i
-                      } else {
-                        pageNum = currentPage - 2 + i
-                      }
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            currentPage === pageNum
-                              ? "bg-[#324D3E] text-white"
-                              : "border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, tableTotalPages))}
-                    disabled={currentPage === tableTotalPages}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

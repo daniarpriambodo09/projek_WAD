@@ -80,7 +80,7 @@ const renderCustomLabel = (props: any) => {
       fill="#12201A"
       textAnchor={anchor}
       dominantBaseline="central"
-      fontSize={10}
+      fontSize={12}
     >
       {lines.map((line: string, i: number) => (
         <tspan key={i} x={x} dy={i === 0 ? 0 : "1em"}>
@@ -636,9 +636,9 @@ export default function KeseshatanPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen from-gray-50 to-gray-100">
       {/* STICKY HEADER - Mobile Optimized */}
-      <div className="sticky top-0 z-[999] bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-200">
+      <div className="sticky top-0 z-[999] backdrop-blur-md shadow-sm border-b border-gray-200">
         <div className="px-3 sm:px-6 py-3 sm:py-4">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0">
@@ -785,14 +785,14 @@ export default function KeseshatanPage() {
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
+                  <PieChart margin={{bottom:20}}>
                     <Pie
                       data={clusterDistribution}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
                       label={renderCustomLabel}
-                      outerRadius={60}
+                      outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
                     >
@@ -822,7 +822,7 @@ export default function KeseshatanPage() {
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={chartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 60 }}>
+                  <BarChart data={chartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis 
                       dataKey="name" 
@@ -860,7 +860,7 @@ export default function KeseshatanPage() {
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={chartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 60 }}>
+                  <LineChart data={chartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis 
                       dataKey="name" 
