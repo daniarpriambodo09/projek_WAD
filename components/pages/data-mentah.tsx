@@ -1,9 +1,7 @@
 // data-mentah.tsx
 "use client"
-
 import { useState, useEffect, useMemo } from "react"
 import { supabase } from "@/lib/supabaseClient"
-
 // --- Interfaces untuk data dari Supabase ---
 interface BaseClusterData {
   id?: string;
@@ -14,7 +12,6 @@ interface BaseClusterData {
   label: string;
   [key: string]: any; // Untuk menangani kolom dinamis lainnya
 }
-
 interface EducationData extends BaseClusterData {
   skor_paud?: number;
   skor_sd?: number;
@@ -24,7 +21,6 @@ interface EducationData extends BaseClusterData {
   skor_pendidikan_total?: number;
   kategori_pendidikan?: string;
 }
-
 interface TipologiData extends BaseClusterData {
   skor_akses_dasar?: number;
   skor_konektivitas?: number;
@@ -60,7 +56,6 @@ interface TipologiData extends BaseClusterData {
   cluster_label_detail?: string;
   final_label?: string;
 }
-
 interface InfrastrukturData extends BaseClusterData {
   skor_listrik?: number;
   skor_sanitasi?: number;
@@ -70,7 +65,6 @@ interface InfrastrukturData extends BaseClusterData {
   skor_aksesibilitas?: number;
   label_infrastruktur?: string; // Kolom label khusus untuk infrastruktur
 }
-
 interface EkonomiData extends BaseClusterData {
   total_kk: number;
   total_penduduk: number;
@@ -97,7 +91,6 @@ interface EkonomiData extends BaseClusterData {
   kategori_ekonomi: string;
   // Label sudah ada di BaseClusterData
 }
-
 // --- Interface untuk data kesehatan ---
 interface HealthData extends BaseClusterData {
   total_penduduk: number;
@@ -116,7 +109,6 @@ interface HealthData extends BaseClusterData {
   Longitude: number;
   Latitude: number;
 }
-
 // --- Interface untuk data digital ---
 interface DigitalData extends BaseClusterData {
   jumlah_bts: number;
@@ -131,7 +123,6 @@ interface DigitalData extends BaseClusterData {
   skor_digital_readiness: number;
   // Label dan cluster sudah ada di BaseClusterData
 }
-
 // --- Interface untuk data lingkungan ---
 interface LingkunganData extends BaseClusterData {
   IDDESA: string;
@@ -154,7 +145,6 @@ export default function DataMentah() {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-
   const clusterFilterList = [
     "Infrastruktur",
     "Digital",
@@ -168,7 +158,6 @@ export default function DataMentah() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [allData, setAllData] = useState<BaseClusterData[]>([]);
-
   // Mapping nama tabel Supabase
   const TABLE_NAMES: Record<string, string> = {
     Pendidikan: 'cluster_pendidikan',
@@ -180,7 +169,6 @@ export default function DataMentah() {
     Lingkungan: 'cluster_lingkungan', // Tambahkan mapping tabel lingkungan
     // Tambahkan mapping untuk tabel lainnya jika diperlukan
   };
-
   // Ambil data dari Supabase saat komponen dimuat atau selectedCluster berubah
   useEffect(() => {
     const fetchData = async () => {
@@ -191,26 +179,21 @@ export default function DataMentah() {
         if (!tableName) {
           throw new Error(`Tabel untuk klaster ${selectedCluster} tidak ditemukan.`);
         }
-
         // Ambil SEMUA data dari Supabase
         let allData: any[] = [];
         const limit = 1000;
         let offset = 0;
-
         while (true) {
           const { data, error } = await supabase
             .from(tableName)
             .select('*') // Ambil semua kolom
             .range(offset, offset + limit - 1);
-
           if (error) throw error;
           if (!data || data.length === 0) break;
-
           allData.push(...data);
           if (data.length < limit) break;
           offset += limit;
         }
-
         // Simpan data mentah ke state, casting ke BaseClusterData
         setAllData(allData as BaseClusterData[]);
       } catch (err) {
@@ -221,7 +204,6 @@ export default function DataMentah() {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [selectedCluster]);
 
@@ -240,7 +222,6 @@ export default function DataMentah() {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredData.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredData, currentPage]);
-
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   // --- Fungsi untuk membuat kolom header berdasarkan klaster (untuk tabel UI) ---
@@ -302,15 +283,15 @@ export default function DataMentah() {
         const typedRow = row as TipologiData;
         return (
           <tr key={`${row.id || globalIndex}`} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
-            <td className="py-3 px-4 text-black">{globalIndex + 1}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_KAB}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_KEC}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_DESA}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_akses_dasar?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_konektivitas?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_pengelolaan_lingkungan?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_kesejahteraan?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{row.cluster}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{globalIndex + 1}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_KAB}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_KEC}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_DESA}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_akses_dasar?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_konektivitas?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_pengelolaan_lingkungan?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_kesejahteraan?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#7FEFE8]">{row.cluster}</td>
             <td className="py-3 px-4">
               <span
                 className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap ${
@@ -330,16 +311,16 @@ export default function DataMentah() {
         const typedRow = row as InfrastrukturData;
         return (
           <tr key={`${row.id || globalIndex}`} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
-            <td className="py-3 px-4 text-black">{globalIndex + 1}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_KAB}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_KEC}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_DESA}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_listrik?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_sanitasi?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_air?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_transportasi?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_digital?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_aksesibilitas?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{globalIndex + 1}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_KAB}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_KEC}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_DESA}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_listrik?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_sanitasi?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_air?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_transportasi?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_digital?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_aksesibilitas?.toFixed(1) || '-'}</td>
             <td className="py-3 px-4">
               <span
                 className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap ${
@@ -359,16 +340,16 @@ export default function DataMentah() {
         const typedRow = row as EkonomiData;
         return (
           <tr key={`${row.id || globalIndex}`} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
-            <td className="py-3 px-4 text-black">{globalIndex + 1}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_KAB}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_KEC}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_DESA}</td>
-            <td className="py-3 px-4 text-black">{typedRow.total_kk}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_kesejahteraan?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_bumdes?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_koperasi?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_industri?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black font-semibold">{typedRow.skor_ekonomi_total?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{globalIndex + 1}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_KAB}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_KEC}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_DESA}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.total_kk}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_kesejahteraan?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_bumdes?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_koperasi?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_industri?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF] font-semibold">{typedRow.skor_ekonomi_total?.toFixed(1) || '-'}</td>
             <td className="py-3 px-4">
               <span
                 className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap ${
@@ -388,16 +369,16 @@ export default function DataMentah() {
         const typedRow = row as HealthData;
         return (
           <tr key={`${row.id || globalIndex}`} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
-            <td className="py-3 px-4 text-black">{globalIndex + 1}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_KAB}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_KEC}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_DESA}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_fasilitas?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_tenaga_kesehatan?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_gizi?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_klb?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_program_prioritas?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black font-semibold">{typedRow.skor_kesehatan_total?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{globalIndex + 1}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_KAB}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_KEC}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_DESA}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_fasilitas?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_tenaga_kesehatan?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_gizi?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_klb?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_program_prioritas?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF] font-semibold">{typedRow.skor_kesehatan_total?.toFixed(1) || '-'}</td>
             <td className="py-3 px-4">
               <span
                 className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap ${
@@ -423,17 +404,17 @@ export default function DataMentah() {
         const typedRow = row as DigitalData;
         return (
           <tr key={`${row.id || globalIndex}`} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
-            <td className="py-3 px-4 text-black text-center">{globalIndex + 1}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_KAB}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_KEC}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_DESA}</td>
-            <td className="py-3 px-4 text-black text-center">{typedRow.jumlah_bts}</td>
-            <td className="py-3 px-4 text-black text-center">{typedRow.jumlah_operator}</td>
-            <td className="py-3 px-4 text-black text-center">{typedRow.sinyal_telepon}%</td>
-            <td className="py-3 px-4 text-black text-center">{typedRow.sinyal_internet}%</td>
-            <td className="py-3 px-4 text-black text-center">{typedRow.ada_warnet}</td>
-            <td className="py-3 px-4 text-black text-center">{typedRow.komputer_desa}</td>
-            <td className="py-3 px-4 text-black text-center">{typedRow.internet_kantordesa}</td>
+            <td className="py-3 px-4 text-[#E6F2EF] text-center">{globalIndex + 1}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_KAB}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_KEC}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_DESA}</td>
+            <td className="py-3 px-4 text-[#E6F2EF] text-center">{typedRow.jumlah_bts}</td>
+            <td className="py-3 px-4 text-[#E6F2EF] text-center">{typedRow.jumlah_operator}</td>
+            <td className="py-3 px-4 text-[#E6F2EF] text-center">{typedRow.sinyal_telepon}%</td>
+            <td className="py-3 px-4 text-[#E6F2EF] text-center">{typedRow.sinyal_internet}%</td>
+            <td className="py-3 px-4 text-[#E6F2EF] text-center">{typedRow.ada_warnet}</td>
+            <td className="py-3 px-4 text-[#E6F2EF] text-center">{typedRow.komputer_desa}</td>
+            <td className="py-3 px-4 text-[#E6F2EF] text-center">{typedRow.internet_kantordesa}</td>
             <td className="py-3 px-4">
               <span
                 className={`px-3 py-1 rounded text-xs font-medium whitespace-nowrap ${
@@ -453,15 +434,15 @@ export default function DataMentah() {
         const typedRow = row as LingkunganData;
         return (
           <tr key={`${typedRow.IDDESA || globalIndex}`} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
-            <td className="py-3 px-4 text-black">{globalIndex + 1}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_KAB}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_KEC}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_DESA}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_lingkungan_total?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_kualitas_lingkungan?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_pengelolaan_sampah?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.skor_ketahanan_bencana?.toFixed(1) || '-'}</td>
-            <td className="py-3 px-4 text-black">{typedRow.kategori_lingkungan || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{globalIndex + 1}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_KAB}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_KEC}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_DESA}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_lingkungan_total?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_kualitas_lingkungan?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_pengelolaan_sampah?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.skor_ketahanan_bencana?.toFixed(1) || '-'}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{typedRow.kategori_lingkungan || '-'}</td>
             <td className="py-3 px-4">
               <span
                 className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap ${
@@ -481,11 +462,11 @@ export default function DataMentah() {
         // Format umum untuk klaster lain
         return (
           <tr key={`${row.id || globalIndex}`} className="border-b border-gray-700 hover:bg-gray-700 transition-colors">
-            <td className="py-3 px-4 text-black">{globalIndex + 1}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_KAB}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_KEC}</td>
-            <td className="py-3 px-4 text-black">{row.NAMA_DESA}</td>
-            <td className="py-3 px-4 text-black">{row.cluster}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{globalIndex + 1}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_KAB}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_KEC}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.NAMA_DESA}</td>
+            <td className="py-3 px-4 text-[#E6F2EF]">{row.cluster}</td>
             <td className="py-3 px-4">
               <span
                 className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap ${
@@ -757,11 +738,9 @@ export default function DataMentah() {
       console.warn("Tidak ada data untuk diunduh.");
       return;
     }
-
     // Ambil semua field names dari objek pertama
     // Ini akan mencakup semua kolom dari tabel Supabase
     const headers = Object.keys(allData[0]).filter(key => key !== '__obfuscated_id'); // Hilangkan field internal jika ada
-
     // Buat baris CSV dari data
     const rows = allData.map(row => {
       // Ambil nilai untuk setiap header
@@ -774,20 +753,18 @@ export default function DataMentah() {
         // Tangani nilai string yang mungkin mengandung koma atau kutipan
         if (typeof value === 'string') {
           // Jika string mengandung koma atau kutipan, bungkus dengan kutipan dan escape kutipan
-          if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          if (value.includes(',') || value.includes('"') || value.includes('')) {
             value = `"${value.replace(/"/g, '""')}"`;
           }
         }
         return value;
       });
     });
-
     // Gabungkan header dan rows menjadi string CSV
     const csvContent = [
       headers.join(","),
       ...rows.map(row => row.join(","))
-    ].join("\n");
-
+    ].join("");
     // Buat blob dan URL untuk download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -806,10 +783,11 @@ export default function DataMentah() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-black mb-2">Data Mentah</h1>
-          <p className="text-gray-600">Data mentah siDesa sebelum diproses</p>
+          <h1 className="text-3xl font-bold text-white mb-2">Data Mentah</h1>
+          <p className="text-muted-foreground">Data mentah siDesa sebelum diproses</p>
         </div>
         <div className="flex gap-3 flex-wrap justify-end">
             <div className="flex flex-col gap-1">
@@ -839,47 +817,94 @@ export default function DataMentah() {
             </div>
         </div>
       </div>
+
       {/* Search */}
-      <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6">
+      <div
+        className="rounded-xl shadow-md overflow-hidden p-4"
+        style={{
+          background: "rgba(10, 31, 26, 0.7)",
+          border: "1px solid rgba(34, 211, 238, 0.2)",
+          boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)",
+        }}
+      >
         <input
           type="text"
           placeholder={`Cari di ${selectedCluster}...`}
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
-            setCurrentPage(1); // Reset ke halaman pertama saat pencarian
+            setCurrentPage(1);
           }}
-          className="w-full px-4 py-2 bg-gray-300 border border-gray-900 rounded text-black placeholder-gray-400 focus:outline-none focus:border-black-500"
+          className="
+            w-full px-4 py-2 
+            bg-[rgba(255,255,255,0.1)] 
+            border border-[rgba(34,211,238,0.3)] 
+            rounded-lg 
+            text-white text-sm
+            placeholder-gray-400
+            focus:outline-none
+            focus:ring-2 focus:ring-teal-400 
+            focus:border-teal-400
+            transition-all
+          "
         />
       </div>
 
       {/* Table */}
-      <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6 overflow-x-auto">
-        {/* Tabel untuk Mobile */}
-        <div className="sm:hidden overflow-x-auto">
+      <div 
+        className="
+          rounded-xl shadow-md overflow-hidden
+          bg-[rgba(10,31,26,0.7)]
+          border border-[rgba(34,211,238,0.2)]
+          shadow-[0_0_30px_rgba(16,185,129,0.1)]
+        "
+      >
+
+        {/* MOBILE TABLE */}
+        <div className="sm:hidden overflow-x-auto p-6">
           {paginatedData.length > 0 ? (
             renderMobileRows()
           ) : (
-            <p className="text-center text-gray-500 py-4">Tidak ada data ditemukan</p>
+            <p className="text-center text-gray-400 py-4">
+              Tidak ada data ditemukan
+            </p>
           )}
         </div>
 
-        {/* Tabel untuk Desktop */}
+        {/* DESKTOP TABLE */}
         <div className="hidden sm:block sm:overflow-x-auto">
           <table className="w-full text-sm">
-            <thead>
+            <thead
+              className="bg-gray-900/40 border-b border-gray-700/60 backdrop-blur-sm"
+            >
               <tr className="border-b border-gray-700">
-                {getTableHeaders().map((header, i) => (
-                  <th key={i} className={`${i === 0 || i === 4 || i === 5 || i === 7 || i === 8 || i === 9 || i === 10 ? 'text-center' : 'text-left'} py-3 px-4 text-black`}>{header}</th>
-                ))}
+                {getTableHeaders().map((header, i) => {
+                  const centerIndex = [0, 4, 5, 7, 8, 9, 10]
+                  const alignClass = centerIndex.includes(i)
+                    ? "text-center"
+                    : "text-left"
+
+                  return (
+                    <th
+                      key={i}
+                      className={`${alignClass} py-3 px-4 text-[#C8FFD4]`}
+                    >
+                      {header}
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
+
             <tbody>
               {paginatedData.length > 0 ? (
                 renderTableRows()
               ) : (
                 <tr>
-                  <td colSpan={getTableHeaders().length} className="py-3 px-4 text-center text-gray-500">
+                  <td
+                    colSpan={getTableHeaders().length}
+                    className="py-3 px-4 text-center text-[#A8DCC8]"
+                  >
                     Tidak ada data ditemukan
                   </td>
                 </tr>
@@ -888,24 +913,41 @@ export default function DataMentah() {
           </table>
         </div>
 
-        {/* Pagination Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-4 pt-4 border-t border-[#c9ece7]">
-          <div className="text-black text-xs sm:text-sm">
-            Menampilkan {paginatedData.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} -{" "}
-            {Math.min(currentPage * itemsPerPage, filteredData.length)} dari {filteredData.length} data
+        {/* PAGINATION */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-4 pt-4 border-t border-[#c9ece7] p-6">
+          
+          {/* Info jumlah data */}
+          <div className="text-white text-xs sm:text-sm">
+            Menampilkan{" "}
+            {paginatedData.length > 0
+              ? (currentPage - 1) * itemsPerPage + 1
+              : 0}{" "}
+            -{" "}
+            {Math.min(currentPage * itemsPerPage, filteredData.length)} dari{" "}
+            {filteredData.length} data
           </div>
+
+          {/* Pagination Buttons */}
           <div className="flex items-center gap-1 sm:gap-2">
+            {/* Prev */}
             <button
               onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1 sm:px-4 sm:py-2 border border-[#c9ece7] rounded text-xs sm:text-sm text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+              className="
+                px-3 py-1 sm:px-4 sm:py-2 rounded font-medium text-xs sm:text-sm text-white 
+                border border-[#c9ece7]
+                disabled:opacity-50 disabled:cursor-not-allowed 
+                hover:bg-gray-700 transition-colors
+              "
             >
               Sebelumnya
             </button>
 
+            {/* Page Numbers */}
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 let pageNum;
+
                 if (totalPages <= 5) {
                   pageNum = i + 1;
                 } else if (currentPage <= 3) {
@@ -915,15 +957,19 @@ export default function DataMentah() {
                 } else {
                   pageNum = currentPage - 2 + i;
                 }
+
                 return (
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`px-2 py-1 sm:px-3 sm:py-2 rounded text-xs sm:text-sm ${
-                      currentPage === pageNum
-                        ? "bg-green-600 text-white"
-                        : "border border-gray-300 text-black hover:bg-gray-100"
-                    }`}
+                    className={`
+                      px-2 py-1 sm:px-3 sm:py-2 rounded text-xs sm:text-sm
+                      ${
+                        currentPage === pageNum
+                          ? "bg-green-600 text-white"
+                          : "border border-gray-400 text-white hover:bg-gray-700"
+                      }
+                    `}
                   >
                     {pageNum}
                   </button>
@@ -931,10 +977,16 @@ export default function DataMentah() {
               })}
             </div>
 
+            {/* Next */}
             <button
               onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1 sm:px-4 sm:py-2 border border-[#c9ece7] rounded text-xs sm:text-sm text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+              className="
+                px-3 py-1 sm:px-4 sm:py-2 rounded font-medium text-xs sm:text-sm text-white 
+                border border-[#c9ece7]
+                disabled:opacity-50 disabled:cursor-not-allowed 
+                hover:bg-gray-700 transition-colors
+              "
             >
               Selanjutnya
             </button>
@@ -942,22 +994,50 @@ export default function DataMentah() {
         </div>
       </div>
 
+
       {/* Stats - Contoh sederhana */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6">
-          <p className="text-black text-sm">Total Records (Filtered)</p>
-          <p className="text-3xl font-bold text-black mt-2">{filteredData.length}</p>
+        <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+          <div className="p-6">
+            <p className="text-muted-foreground text-sm">Total Records (Filtered)</p>
+            <p className="text-3xl font-bold text-white mt-2">{filteredData.length}</p>
+          </div>
         </div>
-        <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6">
-          <p className="text-black text-sm">Total Klaster</p>
-          <p className="text-3xl font-bold text-black mt-2">
-            {[...new Set(filteredData.map(r => r.cluster))].length}
-          </p>
+        <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+          <div className="p-6">
+            <p className="text-muted-foreground text-sm">Total Klaster</p>
+            <p className="text-3xl font-bold text-white mt-2">
+              {[...new Set(filteredData.map(r => r.cluster))].length}
+            </p>
+          </div>
         </div>
-        <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6">
-          <p className="text-black text-sm">Halaman Saat Ini</p>
-          <p className="text-3xl font-bold text-black mt-2">{currentPage} / {totalPages || 1}</p>
-        </div>
+        <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+          <div className="p-6">
+            <p className="text-muted-foreground text-sm">Halaman Saat Ini</p>
+            <p className="text-3xl font-bold text-white mt-2">{currentPage} / {totalPages || 1}</p>
+          </div>
+        </div>  
       </div>
     </div>
   )

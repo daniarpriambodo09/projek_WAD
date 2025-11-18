@@ -77,7 +77,7 @@ const renderCustomLabel = (props: any) => {
     <text
       x={x}
       y={y}
-      fill="#12201A"
+      fill="#ffffff"
       textAnchor={anchor}
       dominantBaseline="central"
       fontSize={12}
@@ -103,7 +103,7 @@ const MapComponent = dynamic(() => import("./MapComponent"), {
   ),
 })
 
-const COLORS = ["#324D3E", "#5A7A60", "#728A6E", "#8EA48B", "#B3C8A1", "#C9D9C3"]
+const COLORS = ["#10b981", "#14b8a6", "#22d3ee", "#34d399", "#06b6d4", "#7dd3fc"]
 const ITEMS_PER_PAGE = 10
 
 export default function KeseshatanPage() {
@@ -405,98 +405,126 @@ export default function KeseshatanPage() {
   const tableTotalPages = Math.ceil(tableData.length / ITEMS_PER_PAGE)
 
   const mapMarkers = useMemo(() => {
-    if (!data.length) return []
+    if (!data.length) return [];
 
-    if (!selectedKab && !selectedKec && !selectedDesa) {
-      const kabupatenMap = new Map<string, { lat: number; lng: number; name: string; cluster: number; label: string }>()
+    // ====== MODE: LEVEL KABUPATEN ======
+    if (!selectedKab) {
+      const kabupatenMap = new Map();
+
       data.forEach(item => {
-        if (!item.Latitude || !item.Longitude) return
-        if (!kabupatenMap.has(item.NAMA_KAB)) {
+        if (item.Latitude && item.Longitude && !kabupatenMap.has(item.NAMA_KAB)) {
           kabupatenMap.set(item.NAMA_KAB, {
             lat: item.Latitude,
             lng: item.Longitude,
             name: item.NAMA_KAB,
             cluster: item.cluster,
-            label: item.label
-          })
+            label: item.label,
+
+            // Ambil satu sample data untuk ditampilkan di tooltip
+            skor_gizi: item.skor_gizi,
+            skor_kesejahteraan: item.skor_kesejahteraan,
+          });
         }
-      })
+      });
+
       return Array.from(kabupatenMap.values()).map(m => ({
         name: m.name,
         position: [m.lat, m.lng] as [number, number],
         kabupaten: m.name,
         kecamatan: "",
+
         cluster: m.cluster,
         label: m.label,
-      }))
+
+        // Data tambahan untuk tooltip
+        skor_gizi: m.skor_gizi,
+        skor_kesejahteraan: m.skor_kesejahteraan,
+      }));
     }
 
-    if (selectedKab && !selectedKec && !selectedDesa) {
-      const kecamatanMap = new Map<string, { lat: number; lng: number; name: string; cluster: number; label: string }>()
+    // ====== MODE: LEVEL KECAMATAN ======
+    if (selectedKab && !selectedKec) {
+      const kecamatanMap = new Map();
+
       data
         .filter(d => d.NAMA_KAB === selectedKab)
         .forEach(item => {
-          if (!item.Latitude || !item.Longitude) return
-          const key = `${item.NAMA_KAB}-${item.NAMA_KEC}`
-          if (!kecamatanMap.has(key)) {
-            kecamatanMap.set(key, {
-              lat: item.Latitude,
-              lng: item.Longitude,
-              name: item.NAMA_KEC,
-              cluster: item.cluster,
-              label: item.label
-            })
+          if (item.Latitude && item.Longitude) {
+            const key = `${item.NAMA_KAB}-${item.NAMA_KEC}`;
+            if (!kecamatanMap.has(key)) {
+              kecamatanMap.set(key, {
+                lat: item.Latitude,
+                lng: item.Longitude,
+                name: item.NAMA_KEC,
+                kabupaten: item.NAMA_KAB,
+                cluster: item.cluster,
+                label: item.label,
+
+                // Ambil satu sample data per kecamatan
+                skor_gizi: item.skor_gizi,
+                skor_kesejahteraan: item.skor_kesejahteraan,
+              });
+            }
           }
-        })
+        });
+
       return Array.from(kecamatanMap.values()).map(m => ({
         name: m.name,
         position: [m.lat, m.lng] as [number, number],
-        kabupaten: selectedKab,
+        kabupaten: m.kabupaten,
         kecamatan: m.name,
+
         cluster: m.cluster,
         label: m.label,
-      }))
+
+        // Data tambahan untuk tooltip
+        skor_gizi: m.skor_gizi,
+        skor_kesejahteraan: m.skor_kesejahteraan,
+      }));
     }
 
-    if (selectedKab && selectedKec && !selectedDesa) {
+    // ====== MODE: LEVEL DESA ======
+    if (selectedKab && selectedKec) {
       return data
-        .filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec && d.Latitude && d.Longitude)
+        .filter(
+          d =>
+            d.NAMA_KAB === selectedKab &&
+            d.NAMA_KEC === selectedKec &&
+            d.Latitude &&
+            d.Longitude
+        )
         .map(m => ({
           name: m.NAMA_DESA,
           position: [m.Latitude, m.Longitude] as [number, number],
           kabupaten: m.NAMA_KAB,
           kecamatan: m.NAMA_KEC,
+
           cluster: m.cluster,
           label: m.label,
-        }))
+
+          // Data tambahan untuk tooltip
+          skor_gizi: m.skor_gizi,
+          skor_kesejahteraan: m.skor_kesejahteraan,
+        }));
     }
 
-    if (selectedDesa) {
-      const desaItem = data.find(d => d.NAMA_DESA === selectedDesa)
-      if (!desaItem) return []
-      return data
-        .filter(d => d.NAMA_KAB === desaItem.NAMA_KAB && d.NAMA_KEC === desaItem.NAMA_KEC && d.Latitude && d.Longitude)
-        .map(m => ({
-          name: m.NAMA_DESA,
-          position: [m.Latitude, m.Longitude] as [number, number],
-          kabupaten: m.NAMA_KAB,
-          kecamatan: m.NAMA_KEC,
-          cluster: m.cluster,
-          label: m.label,
-        }))
-    }
-
+    // Default: tampilkan semua desa jika tidak ada filter
     return data
-      .filter(d => d.Latitude && d.Longitude)
+      .filter(m => m.Latitude && m.Longitude)
       .map(m => ({
         name: m.NAMA_DESA,
         position: [m.Latitude, m.Longitude] as [number, number],
         kabupaten: m.NAMA_KAB,
         kecamatan: m.NAMA_KEC,
+
         cluster: m.cluster,
         label: m.label,
-      }))
-  }, [data, selectedKab, selectedKec, selectedDesa])
+
+        // Data tambahan untuk tooltip
+        skor_gizi: m.skor_gizi,
+        skor_kesejahteraan: m.skor_kesejahteraan,
+      }));
+  }, [data, selectedKab, selectedKec, selectedDesa]);
 
   const chartData = useMemo(() => {
     if (!data.length) return { data: [], label: "Data" }
@@ -638,14 +666,28 @@ export default function KeseshatanPage() {
   return (
     <div className="min-h-screen from-gray-50 to-gray-100">
       {/* STICKY HEADER - Mobile Optimized */}
-      <div className="sticky top-0 z-[999] backdrop-blur-md shadow-sm border-b border-gray-200">
+     <div 
+        className="sticky top-0 z-[999] shadow-sm"
+        style={{
+          background: "rgba(10, 31, 26, 0.9)", // Warna latar dari digital.txt
+          backdropFilter: "blur(20px)",
+          borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+        }}
+      >
         <div className="px-3 sm:px-6 py-3 sm:py-4">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-gray-900 truncate">
+              <h1 
+                className="text-lg sm:text-2xl md:text-3xl font-bold truncate"
+                style={{ 
+                  background: "linear-gradient(135deg, #22d3ee, #10b981)", // Gradien judul dari digital.txt
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
                 Dashboard Kesehatan Desa
               </h1>
-              <p className="text-xs sm:text-sm text-gray-600 mt-1">
+              <p className="text-xs sm:text-sm mt-1" style={{ color: "#a8dcc8" }}>
                 Analisis clustering kesehatan masyarakat per desa
               </p>
             </div>
@@ -662,53 +704,70 @@ export default function KeseshatanPage() {
 
           {/* Filter Panel - Collapsible on Mobile */}
           {showFilters && (
-            <div className="space-y-2 sm:space-y-3 pt-3 border-t border-gray-200 animate-in slide-in-from-top duration-200">
+            <div 
+              className="space-y-2 sm:space-y-3 pt-3 animate-in slide-in-from-top duration-200"
+              style={{
+                borderTop: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+              }}
+            >
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Kabupaten</label>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#d4f4e8" }}>Kabupaten</label> {/* Warna teks dari digital.txt */}
                   <select
                     value={selectedKab}
                     onChange={(e) => setSelectedKab(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2"
+                    style={{
+                      background: "rgba(16, 185, 129, 0.1)", // Warna input dari digital.txt
+                      border: "1px solid rgba(34, 211, 238, 0.3)", // Warna border dari digital.txt
+                      color: "#d4f4e8", // Warna teks dari digital.txt
+                    }}
                   >
-                    <option value="">Semua Kabupaten</option>
+                    <option value="" style={{ background: "#1a3a32" }}>Semua Kabupaten</option> {/* Warna background dari digital.txt */}
                     {[...new Set(data.map(d => d.NAMA_KAB))].sort().map(kab => (
-                      <option key={kab} value={kab}>{kab}</option>
+                      <option key={kab} value={kab} style={{ background: "#1a3a32" }}>{kab}</option> // Warna background dari digital.txt
                     ))}
                   </select>
                 </div>
-
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Kecamatan</label>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#d4f4e8" }}>Kecamatan</label> {/* Warna teks dari digital.txt */}
                   <select
                     value={selectedKec}
                     onChange={(e) => setSelectedKec(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      background: "rgba(16, 185, 129, 0.1)", // Warna input dari digital.txt
+                      border: "1px solid rgba(34, 211, 238, 0.3)", // Warna border dari digital.txt
+                      color: "#d4f4e8", // Warna teks dari digital.txt
+                    }}
                     disabled={!selectedKab}
                   >
-                    <option value="">Semua Kecamatan</option>
+                    <option value="" style={{ background: "#1a3a32" }}>Semua Kecamatan</option> {/* Warna background dari digital.txt */}
                     {kecamatanOptions.map(kec => (
-                      <option key={kec} value={kec}>{kec}</option>
+                      <option key={kec} value={kec} style={{ background: "#1a3a32" }}>{kec}</option> // Warna background dari digital.txt
                     ))}
                   </select>
                 </div>
-
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Desa</label>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#d4f4e8" }}>Desa</label> {/* Warna teks dari digital.txt */}
                   <select
                     value={selectedDesa}
                     onChange={(e) => setSelectedDesa(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      background: "rgba(16, 185, 129, 0.1)", // Warna input dari digital.txt
+                      border: "1px solid rgba(34, 211, 238, 0.3)", // Warna border dari digital.txt
+                      color: "#d4f4e8", // Warna teks dari digital.txt
+                    }}
                     disabled={!selectedKec}
                   >
-                    <option value="">Semua Desa</option>
+                    <option value="" style={{ background: "#1a3a32" }}>Semua Desa</option> {/* Warna background dari digital.txt */}
                     {desaOptions.map(desa => (
-                      <option key={desa} value={desa}>{desa}</option>
+                      <option key={desa} value={desa} style={{ background: "#1a3a32" }}>{desa}</option> // Warna background dari digital.txt
                     ))}
                   </select>
                 </div>
               </div>
-
               {(selectedKab || selectedKec || selectedDesa) && (
                 <button
                   onClick={() => {
@@ -716,7 +775,8 @@ export default function KeseshatanPage() {
                     setSelectedKec("")
                     setSelectedDesa("")
                   }}
-                  className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+                  className="text-xs font-medium flex items-center gap-1 transition-all"
+                  style={{ color: "#ef4444" }} // Warna tombol reset dari digital.txt
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -733,10 +793,10 @@ export default function KeseshatanPage() {
         {/* Stats Cards - Responsive Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[
-            { label: "Total Desa", value: stats.totalDesa, color: "from-blue-500 to-blue-600" },
-            { label: "Rata-rata Skor Fasilitas", value: stats.avgFasilitas, color: "from-green-500 to-green-600" },
-            { label: "Rata-rata Skor Tenaga", value: stats.avgTenaga, color: "from-purple-500 to-purple-600" },
-            { label: "Rata-rata Skor Kesehatan", value: stats.avgKesehatan, color: "from-pink-500 to-pink-600" },
+            { label: "Total Desa", value: stats.totalDesa, color: "from-emerald-700 to-emerald-200" },
+            { label: "Rata-rata Skor Fasilitas", value: stats.avgFasilitas, color: "from-green-700 to-green-300" },
+            { label: "Rata-rata Skor Tenaga", value: stats.avgTenaga, color: "from-teal-700 to-teal-300" },
+            { label: "Rata-rata Skor Kesehatan", value: stats.avgKesehatan, color: "from-cyan-700 to-cyan-300" },
           ].map((stat, idx) => (
             <div key={idx} className={`bg-gradient-to-br ${stat.color} rounded-xl p-4 shadow-lg text-white`}>
               <p className="text-xs sm:text-sm font-medium opacity-90 mb-1">{stat.label}</p>
@@ -746,24 +806,86 @@ export default function KeseshatanPage() {
         </div>
 
         {/* Map Section */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+        <div 
+          className="rounded-xl shadow-md overflow-hidden"
+          style={{
+            background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+            border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+            boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+          }}
+        >
+          <div 
+            className="px-4 py-3"
+            style={{
+              borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+              background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+            }}
+          >
+            <h2 className="text-base sm:text-lg font-semibold" style={{ color: "#d4f4e8" }}>
               Sebaran Kesehatan Desa
-              <span className="ml-2 text-sm font-normal text-gray-600">({mapMarkers.length} lokasi)</span>
+              <span className="ml-2 text-sm font-normal" style={{ color: "#a8dcc8" }}> ({mapMarkers.length} lokasi)</span>
             </h2>
           </div>
           <div className="h-56 sm:h-80 md:h-96">
             <MapComponent 
               markers={mapMarkers}
               renderTooltip={(marker) => (
-                <div className="text-sm">
-                  <div className="font-semibold text-gray-900">{marker.name}</div>
-                  {marker.kecamatan && <div className="text-gray-600">Kec. {marker.kecamatan}</div>}
-                  {marker.kabupaten && <div className="text-gray-600">Kab. {marker.kabupaten}</div>}
+                <div
+                  className="px-4 py-3 rounded-xl shadow-lg bg-[rgba(15,35,30,0.9)] border border-[rgba(34,211,238,0.4)] backdrop-blur-sm text-white space-y-2 max-w-xs"
+                  style={{
+                    boxShadow: "0 4px 16px rgba(34,211,238,0.2)",
+                    fontSize: '14px',
+                    lineHeight: '1.5'
+                  }}
+                >
+                  {/* Nama Utama */}
+                  <div className="font-bold text-lg tracking-tight text-[#d4f4e8]">
+                    {marker.name}
+                  </div>
+
+                  {/* Informasi Lokasi */}
+                  <div className="space-y-1 text-xs text-[#a8dcc8]">
+                    {marker.kecamatan && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[12px]">📍</span>
+                        <span>Kec. {marker.kecamatan}</span>
+                      </div>
+                    )}
+                    {marker.kabupaten && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[12px]">🏛️</span>
+                        <span>Kab. {marker.kabupaten}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Badge Label (seperti contoh visual) */}
                   {marker.label && (
-                    <div className="mt-1 px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium inline-block">
+                    <div
+                      className="mt-2 px-3 py-1.5 rounded-lg font-semibold text-sm text-[#22d3ee] bg-[rgba(34,211,238,0.15)] border border-[rgba(34,211,238,0.3)] whitespace-nowrap"
+                      style={{
+                        boxShadow: "inset 0 0 4px rgba(34,211,238,0.2)"
+                      }}
+                    >
                       {marker.label}
+                    </div>
+                  )}
+
+                  {/* Skor Tambahan */}
+                  {(marker.skor_gizi !== undefined || marker.skor_kesejahteraan !== undefined) && (
+                    <div className="mt-2 pt-2 border-t border-gray-700 space-y-1">
+                      {marker.skor_gizi !== undefined && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Gizi:</span>
+                          <span className="font-medium text-[#22d3ee]">{Number(marker.skor_gizi).toFixed(1)}</span>
+                        </div>
+                      )}
+                      {marker.skor_kesejahteraan !== undefined && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Kesejahteraan:</span>
+                          <span className="font-medium text-[#22d3ee]">{Number(marker.skor_kesejahteraan).toFixed(1)}</span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -777,9 +899,22 @@ export default function KeseshatanPage() {
           {/* Row 1 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Chart 1 - Distribusi Cluster */}
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+            <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+              <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+                }}
+              >
+                <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
                   Distribusi Kluster Kesehatan
                 </h2>
               </div>
@@ -793,7 +928,7 @@ export default function KeseshatanPage() {
                       labelLine={false}
                       label={renderCustomLabel}
                       outerRadius={80}
-                      fill="#8884d8"
+                      fill="#ffffff"
                       dataKey="value"
                     >
                       {clusterDistribution.map((entry, index) => (
@@ -802,11 +937,18 @@ export default function KeseshatanPage() {
                     </Pie>
                     <Tooltip 
                       contentStyle={{ 
-                        backgroundColor: 'white', 
+                        background: 'rgba(10, 31, 26, 0.95)', 
                         border: '1px solid #e5e7eb',
                         borderRadius: '8px',
                         fontSize: '12px'
                       }} 
+                      labelStyle={{
+                          color: "#d4f4e8",      // warna label tooltip
+                          fontWeight: "bold",
+                      }}
+                      itemStyle={{
+                        color: "#d4f4e8",      // warna nilai tooltip
+                      }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -814,26 +956,39 @@ export default function KeseshatanPage() {
             </div>
 
             {/* Chart 2 - Skor Fasilitas */}
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+            <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+              <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+                }}
+              >
+                <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
                   Rata-rata Skor Fasilitas per {chartData.label}
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={chartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
                     <XAxis 
                       dataKey="name" 
-                      stroke="#6b7280" 
+                      stroke="#ffffff" 
                       angle={-45} 
                       textAnchor="end" 
                       height={80} 
                       fontSize={9}
                       interval={0}
                     />
-                    <YAxis stroke="#6b7280" fontSize={10} />
+                    <YAxis stroke="#ffff" fontSize={10} />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: 'white', 
@@ -842,7 +997,7 @@ export default function KeseshatanPage() {
                         fontSize: '12px'
                       }} 
                     />
-                    <Bar dataKey="fasilitas" fill="#324D3E" name="Skor Fasilitas" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="fasilitas" fill="#10b981" name="Skor Fasilitas" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -852,26 +1007,39 @@ export default function KeseshatanPage() {
           {/* Row 2 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Chart 3 - Skor Tenaga */}
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+            <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+              <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+                }}
+              >
+                <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
                   Rata-rata Skor Tenaga Kesehatan per {chartData.label}
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={chartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
                     <XAxis 
                       dataKey="name" 
-                      stroke="#6b7280" 
+                      stroke="#ffff" 
                       angle={-45} 
                       textAnchor="end" 
                       height={80} 
                       fontSize={9}
                       interval={0}
                     />
-                    <YAxis stroke="#6b7280" fontSize={10} />
+                    <YAxis stroke="#ffff" fontSize={10} />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: 'white', 
@@ -880,25 +1048,38 @@ export default function KeseshatanPage() {
                         fontSize: '12px'
                       }} 
                     />
-                    <Line type="monotone" dataKey="tenaga" stroke="#5A7A60" strokeWidth={3} name="Skor Tenaga" dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="tenaga" stroke="#7dd3fc" strokeWidth={3} name="Skor Tenaga" dot={{ r: 3 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             {/* Chart 4 - Komponen Kesehatan */}
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+            <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+              <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+                }}
+              >
+                <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
                   Rata-rata Skor Komponen Kesehatan
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={skorComponentChartData} margin={{ top: 5, right: 10, left: -10, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" stroke="#6b7280" fontSize={10} />
-                    <YAxis stroke="#6b7280" fontSize={10} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
+                    <XAxis dataKey="name" stroke="#ffff" fontSize={10} />
+                    <YAxis stroke="#ffff" fontSize={10} />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: 'white', 
@@ -907,7 +1088,7 @@ export default function KeseshatanPage() {
                         fontSize: '12px'
                       }} 
                     />
-                    <Bar dataKey="avg" fill="#728A6E" name="Skor Rata-rata" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="avg" fill="#7dd3fc" name="Skor Rata-rata" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -917,18 +1098,31 @@ export default function KeseshatanPage() {
           {/* Row 3 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Chart 5 - Fasilitas per 1000 */}
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+            <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+              <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+                }}
+              >
+                <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
                   Fasilitas Kesehatan per 1000 Penduduk
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={infraChartData} margin={{ top: 5, right: 10, left: -10, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" stroke="#6b7280" fontSize={10} />
-                    <YAxis stroke="#6b7280" fontSize={10} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
+                    <XAxis dataKey="name" stroke="#ffff" fontSize={10} />
+                    <YAxis stroke="#ffff" fontSize={10} />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: 'white', 
@@ -937,25 +1131,38 @@ export default function KeseshatanPage() {
                         fontSize: '12px'
                       }} 
                     />
-                    <Bar dataKey="avg" fill="#8EA48B" name="Per 1000 Penduduk" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="avg" fill="#10b981" name="Per 1000 Penduduk" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             {/* Chart 6 - Tenaga per 1000 */}
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+            <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+              <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+                }}
+              >
+                <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
                   Tenaga Kesehatan per 1000 Penduduk
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={workforceChartData} margin={{ top: 5, right: 10, left: -10, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" stroke="#6b7280" fontSize={10} />
-                    <YAxis stroke="#6b7280" fontSize={10} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
+                    <XAxis dataKey="name" stroke="#ffff" fontSize={10} />
+                    <YAxis stroke="#ffff" fontSize={10} />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: 'white', 
@@ -964,7 +1171,7 @@ export default function KeseshatanPage() {
                         fontSize: '12px'
                       }} 
                     />
-                    <Bar dataKey="avg" fill="#B3C8A1" name="Per 1000 Penduduk" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="avg" fill="#10b981" name="Per 1000 Penduduk" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

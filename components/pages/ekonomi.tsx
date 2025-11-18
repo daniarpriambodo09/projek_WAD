@@ -80,7 +80,7 @@ const renderCustomLabel = (props: any) => {
     <text
       x={x}
       y={y}
-      fill="#12201A"
+      fill="#ffffff"
       textAnchor={anchor}
       dominantBaseline="central"
       fontSize={12}
@@ -106,7 +106,7 @@ const MapComponent = dynamic(() => import("./MapComponent"), {
   ),
 })
 
-const COLORS = ["#324D3E", "#5A7A60", "#728A6E", "#8EA48B", "#B3C8A1", "#9AB59F"]
+const COLORS = ["#10b981", "#14b8a6", "#22d3ee", "#34d399", "#06b6d4", "#7dd3fc"]
 
 export default function EkonomiPage() {
   const [data, setData] = useState<EkonomiData[]>([])
@@ -203,9 +203,12 @@ export default function EkonomiPage() {
 
   // Map markers
   const mapMarkers = useMemo(() => {
-    if (!data.length) return []
+    if (!data.length) return [];
+
+    // ====== MODE: LEVEL KABUPATEN ======
     if (!selectedKab) {
-      const kabupatenMap = new Map()
+      const kabupatenMap = new Map();
+
       data.forEach(item => {
         if (item.Latitude && item.Longitude && !kabupatenMap.has(item.NAMA_KAB)) {
           kabupatenMap.set(item.NAMA_KAB, {
@@ -214,25 +217,38 @@ export default function EkonomiPage() {
             name: item.NAMA_KAB,
             cluster: item.cluster,
             label: item.label,
-          })
+
+            // Ambil satu sample data untuk ditampilkan di tooltip
+            grup_sektor: item.grup_sektor,
+            skor_kesejahteraan: item.skor_kesejahteraan,
+          });
         }
-      })
+      });
+
       return Array.from(kabupatenMap.values()).map(m => ({
         name: m.name,
         position: [m.lat, m.lng] as [number, number],
         kabupaten: m.name,
         kecamatan: "",
+
         cluster: m.cluster,
         label: m.label,
-      }))
+
+        // Data tambahan untuk tooltip
+        grup_sektor: m.grup_sektor,
+        skor_kesejahteraan: m.skor_kesejahteraan,
+      }));
     }
+
+    // ====== MODE: LEVEL KECAMATAN ======
     if (selectedKab && !selectedKec) {
-      const kecamatanMap = new Map()
+      const kecamatanMap = new Map();
+
       data
         .filter(d => d.NAMA_KAB === selectedKab)
         .forEach(item => {
           if (item.Latitude && item.Longitude) {
-            const key = `${item.NAMA_KAB}-${item.NAMA_KEC}`
+            const key = `${item.NAMA_KAB}-${item.NAMA_KEC}`;
             if (!kecamatanMap.has(key)) {
               kecamatanMap.set(key, {
                 lat: item.Latitude,
@@ -241,35 +257,72 @@ export default function EkonomiPage() {
                 kabupaten: item.NAMA_KAB,
                 cluster: item.cluster,
                 label: item.label,
-              })
+
+                // Ambil satu sample data per kecamatan
+                grup_sektor: item.grup_sektor,
+                skor_kesejahteraan: item.skor_kesejahteraan,
+              });
             }
           }
-        })
+        });
+
       return Array.from(kecamatanMap.values()).map(m => ({
         name: m.name,
         position: [m.lat, m.lng] as [number, number],
         kabupaten: m.kabupaten,
         kecamatan: m.name,
+
         cluster: m.cluster,
         label: m.label,
-      }))
+
+        // Data tambahan untuk tooltip
+        grup_sektor: m.grup_sektor,
+        skor_kesejahteraan: m.skor_kesejahteraan,
+      }));
     }
+
+    // ====== MODE: LEVEL DESA ======
     if (selectedKab && selectedKec) {
       return data
-        .filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec && d.Latitude && d.Longitude)
+        .filter(
+          d =>
+            d.NAMA_KAB === selectedKab &&
+            d.NAMA_KEC === selectedKec &&
+            d.Latitude &&
+            d.Longitude
+        )
         .map(m => ({
           name: m.NAMA_DESA,
           position: [m.Latitude, m.Longitude] as [number, number],
           kabupaten: m.NAMA_KAB,
           kecamatan: m.NAMA_KEC,
-          skorEkonomi: m.skor_ekonomi_total,
-          skorKesejahteraan: m.skor_kesejahteraan,
+
           cluster: m.cluster,
           label: m.label,
-        }))
+
+          // Data tambahan untuk tooltip
+          grup_sektor: m.grup_sektor,
+          skor_kesejahteraan: m.skor_kesejahteraan,
+        }));
     }
-    return []
-  }, [data, selectedKab, selectedKec])
+
+    // Default: tampilkan semua desa jika tidak ada filter
+    return data
+      .filter(m => m.Latitude && m.Longitude)
+      .map(m => ({
+        name: m.NAMA_DESA,
+        position: [m.Latitude, m.Longitude] as [number, number],
+        kabupaten: m.NAMA_KAB,
+        kecamatan: m.NAMA_KEC,
+
+        cluster: m.cluster,
+        label: m.label,
+
+        // Data tambahan untuk tooltip
+        grup_sektor: m.grup_sektor,
+        skor_kesejahteraan: m.skor_kesejahteraan,
+      }));
+  }, [data, selectedKab, selectedKec, selectedDesa]); // Tambahkan selectedDesa jika perlu
 
   // Chart data
   const chartData = useMemo(() => {
@@ -477,14 +530,28 @@ export default function EkonomiPage() {
   return (
     <div className="min-h-screen from-gray-50 to-gray-100">
       {/* STICKY HEADER */}
-      <div className="sticky top-0 z-[999] backdrop-blur-sm shadow-sm border-b border-gray-200">
+      <div 
+        className="sticky top-0 z-[999] shadow-sm"
+        style={{
+          background: "rgba(10, 31, 26, 0.9)", // Warna latar dari digital.txt
+          backdropFilter: "blur(20px)",
+          borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+        }}
+      >
         <div className="px-3 sm:px-5 py-3 sm:py-4">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-gray-900 truncate">
+              <h1 
+                className="text-lg sm:text-2xl md:text-3xl font-bold truncate"
+                style={{ 
+                  background: "linear-gradient(135deg, #22d3ee, #10b981)", // Gradien judul dari digital.txt
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
                 Dashboard Ekonomi Desa
               </h1>
-              <p className="text-xs sm:text-sm text-gray-600 mt-1">
+              <p className="text-xs sm:text-sm mt-1" style={{ color: "#a8dcc8" }}>
                 Data kluster ekonomi dan usaha per desa
               </p>
             </div>
@@ -499,46 +566,66 @@ export default function EkonomiPage() {
             </button>
           </div>
           {showFilters && (
-            <div className="space-y-2 sm:space-y-3 pt-3 border-t border-gray-200 animate-in slide-in-from-top duration-200">
+            <div 
+              className="space-y-2 sm:space-y-3 pt-3 animate-in slide-in-from-top duration-200"
+              style={{
+                borderTop: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+              }}
+            >
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Kabupaten</label>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#d4f4e8" }}>Kabupaten</label> {/* Warna teks dari digital.txt */}
                   <select
                     value={selectedKab}
                     onChange={(e) => setSelectedKab(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2"
+                    style={{
+                      background: "rgba(16, 185, 129, 0.1)", // Warna input dari digital.txt
+                      border: "1px solid rgba(34, 211, 238, 0.3)", // Warna border dari digital.txt
+                      color: "#d4f4e8", // Warna teks dari digital.txt
+                    }}
                   >
-                    <option value="">Semua Kabupaten</option>
+                    <option value="" style={{ background: "#1a3a32" }}>Semua Kabupaten</option> {/* Warna background dari digital.txt */}
                     {[...new Set(data.map(d => d.NAMA_KAB))].sort().map(kab => (
-                      <option key={kab} value={kab}>{kab}</option>
+                      <option key={kab} value={kab} style={{ background: "#1a3a32" }}>{kab}</option> // Warna background dari digital.txt
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Kecamatan</label>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#d4f4e8" }}>Kecamatan</label> {/* Warna teks dari digital.txt */}
                   <select
                     value={selectedKec}
                     onChange={(e) => setSelectedKec(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      background: "rgba(16, 185, 129, 0.1)", // Warna input dari digital.txt
+                      border: "1px solid rgba(34, 211, 238, 0.3)", // Warna border dari digital.txt
+                      color: "#d4f4e8", // Warna teks dari digital.txt
+                    }}
                     disabled={!selectedKab}
                   >
-                    <option value="">Semua Kecamatan</option>
+                    <option value="" style={{ background: "#1a3a32" }}>Semua Kecamatan</option> {/* Warna background dari digital.txt */}
                     {kecamatanOptions.map(kec => (
-                      <option key={kec} value={kec}>{kec}</option>
+                      <option key={kec} value={kec} style={{ background: "#1a3a32" }}>{kec}</option> // Warna background dari digital.txt
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Desa</label>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#d4f4e8" }}>Desa</label> {/* Warna teks dari digital.txt */}
                   <select
                     value={selectedDesa}
                     onChange={(e) => setSelectedDesa(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5fb8a8] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      background: "rgba(16, 185, 129, 0.1)", // Warna input dari digital.txt
+                      border: "1px solid rgba(34, 211, 238, 0.3)", // Warna border dari digital.txt
+                      color: "#d4f4e8", // Warna teks dari digital.txt
+                    }}
                     disabled={!selectedKec}
                   >
-                    <option value="">Semua Desa</option>
+                    <option value="" style={{ background: "#1a3a32" }}>Semua Desa</option> {/* Warna background dari digital.txt */}
                     {desaOptions.map(desa => (
-                      <option key={desa} value={desa}>{desa}</option>
+                      <option key={desa} value={desa} style={{ background: "#1a3a32" }}>{desa}</option> // Warna background dari digital.txt
                     ))}
                   </select>
                 </div>
@@ -550,7 +637,8 @@ export default function EkonomiPage() {
                     setSelectedKec("")
                     setSelectedDesa("")
                   }}
-                  className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+                  className="text-xs font-medium flex items-center gap-1 transition-all"
+                  style={{ color: "#ef4444" }} // Warna tombol reset dari digital.txt
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -567,10 +655,10 @@ export default function EkonomiPage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[
-            { label: "Total Desa", value: stats.totalDesa, color: "from-emerald-200 to-emerald-700" },
-            { label: "Rata-rata Skor Ekonomi", value: stats.avgEkonomi, color: "from-green-500 to-green-600" },
-            { label: "Rata-rata Kesejahteraan", value: stats.avgKesejahteraan, color: "from-teal-500 to-teal-600" },
-            { label: "Rata-rata BUMDES", value: stats.avgBUMDES, color: "from-cyan-500 to-cyan-600" },
+            { label: "Total Desa", value: stats.totalDesa, color: "from-emerald-700 to-emerald-200" },
+            { label: "Rata-rata Skor Ekonomi", value: stats.avgEkonomi, color: "from-green-700 to-green-300" },
+            { label: "Rata-rata Kesejahteraan", value: stats.avgKesejahteraan, color: "from-teal-700 to-teal-300" },
+            { label: "Rata-rata BUMDES", value: stats.avgBUMDES, color: "from-cyan-700 to-cyan-300" },
           ].map((stat, idx) => (
             <div key={idx} className={`bg-gradient-to-br ${stat.color} rounded-xl p-4 shadow-lg text-white`}>
               <p className="text-xs sm:text-sm font-medium opacity-90 mb-1">{stat.label}</p>
@@ -580,9 +668,22 @@ export default function EkonomiPage() {
         </div>
 
         {/* Map */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+       <div 
+          className="rounded-xl shadow-md overflow-hidden"
+          style={{
+            background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+            border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+            boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+          }}
+        >
+          <div 
+            className="px-4 py-3"
+            style={{
+              borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+              background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+            }}
+          >
+            <h2 className="text-base sm:text-lg font-semibold" style={{ color: "#d4f4e8" }}>
               Sebaran Desa ({mapMarkers.length} lokasi)
             </h2>
           </div>
@@ -590,16 +691,62 @@ export default function EkonomiPage() {
             <MapComponent
               markers={mapMarkers}
               renderTooltip={(marker) => (
-                <div className="text-sm">
-                  <div className="font-semibold text-gray-900">{marker.name}</div>
-                  {marker.kecamatan && <div className="text-gray-600">Kec. {marker.kecamatan}</div>}
-                  {marker.kabupaten && <div className="text-gray-600">Kab. {marker.kabupaten}</div>}
-                  {marker.skorEkonomi !== undefined && (
-                    <div className="text-gray-700">Skor Ekonomi: {marker.skorEkonomi.toFixed(1)}</div>
-                  )}
+                <div
+                  className="px-4 py-3 rounded-xl shadow-lg bg-[rgba(15,35,30,0.9)] border border-[rgba(34,211,238,0.4)] backdrop-blur-sm text-white space-y-2 max-w-xs"
+                  style={{
+                    boxShadow: "0 4px 16px rgba(34,211,238,0.2)",
+                    fontSize: '14px',
+                    lineHeight: '1.5'
+                  }}
+                >
+                  {/* Nama Utama */}
+                  <div className="font-bold text-lg tracking-tight text-[#d4f4e8]">
+                    {marker.name}
+                  </div>
+
+                  {/* Informasi Lokasi */}
+                  <div className="space-y-1 text-xs text-[#a8dcc8]">
+                    {marker.kecamatan && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[12px]">📍</span>
+                        <span>Kec. {marker.kecamatan}</span>
+                      </div>
+                    )}
+                    {marker.kabupaten && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[12px]">🏛️</span>
+                        <span>Kab. {marker.kabupaten}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Badge Label (seperti contoh visual) */}
                   {marker.label && (
-                    <div className="mt-1 px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-medium inline-block">
+                    <div
+                      className="mt-2 px-3 py-1.5 rounded-lg font-semibold text-sm text-[#22d3ee] bg-[rgba(34,211,238,0.15)] border border-[rgba(34,211,238,0.3)] whitespace-nowrap"
+                      style={{
+                        boxShadow: "inset 0 0 4px rgba(34,211,238,0.2)"
+                      }}
+                    >
                       {marker.label}
+                    </div>
+                  )}
+
+                  {/* Skor dan Grup Sektor Tambahan */}
+                  {(marker.grup_sektor !== undefined || marker.skor_kesejahteraan !== undefined) && (
+                    <div className="mt-2 pt-2 border-t border-gray-700 space-y-1">
+                      {marker.grup_sektor !== undefined && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Sektor Ekonomi:</span>
+                          <span className="font-medium text-[#22d3ee]">{marker.grup_sektor}</span>
+                        </div>
+                      )}
+                      {marker.skor_kesejahteraan !== undefined && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Kesejahteraan:</span>
+                          <span className="font-medium text-[#22d3ee]">{Number(marker.skor_kesejahteraan).toFixed(1)}</span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -611,38 +758,64 @@ export default function EkonomiPage() {
         {/* Charts */}
         <div className="space-y-4 sm:space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+              <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+               <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+                }}
+              >
+                 <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
                   Skor Ekonomi per {chartData.label}
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={chartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" stroke="#6b7280" angle={-45} textAnchor="end" height={80} fontSize={10} interval={0} />
-                    <YAxis stroke="#6b7280" fontSize={12} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
+                    <XAxis dataKey="name" stroke="#ffffff" angle={-45} textAnchor="end" height={80} fontSize={10} interval={0} />
+                    <YAxis stroke="#ffffff" fontSize={12} />
                     <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }} />
-                    <Bar dataKey="skor" fill="#324D3E" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="skor" fill="#10b981" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+            <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+              <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+                }}
+              >
+                <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
                   Skor Kesejahteraan per {kesejahteraanChartData.label}
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={kesejahteraanChartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" stroke="#6b7280" angle={-45} textAnchor="end" height={80} fontSize={10} interval={0} />
-                    <YAxis stroke="#6b7280" fontSize={12} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
+                    <XAxis dataKey="name" stroke="#ffffff" angle={-45} textAnchor="end" height={80} fontSize={10} interval={0} />
+                    <YAxis stroke="#ffffff" fontSize={12} />
                     <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }} />
-                    <Bar dataKey="skor" fill="#5A7A60" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="skor" fill="#10b981" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -650,38 +823,64 @@ export default function EkonomiPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+             <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+             <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+                }}
+              >
+                <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
                   Sektor Ekonomi (Rata-rata)
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart layout="vertical" data={sectorChartData} margin={{ left: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis type="number" stroke="#6b7280" fontSize={12} />
-                    <YAxis dataKey="name" type="category" stroke="#6b7280" fontSize={12} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
+                    <XAxis type="number" stroke="#ffffff" fontSize={12} />
+                    <YAxis dataKey="name" type="category" stroke="#ffffff" fontSize={12} />
                     <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }} />
-                    <Bar dataKey="avg" fill="#728A6E" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="avg" fill="#7dd3fc" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+            <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+             <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+                }}
+              >
+               <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
                   Skor Komponen Ekonomi
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={komponenEkonomiData} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
-                    <YAxis stroke="#6b7280" fontSize={12} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
+                    <XAxis dataKey="name" stroke="#ffffff" fontSize={12} />
+                    <YAxis stroke="#ffffff" fontSize={12} />
                     <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }} />
-                    <Bar dataKey="avg" fill="#8EA48B" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="avg" fill="#7dd3fc" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -689,9 +888,22 @@ export default function EkonomiPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+           <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+              <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+                }}
+              >
+               <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
                   Distribusi Sektor Ekonomi
                 </h2>
               </div>
@@ -711,14 +923,41 @@ export default function EkonomiPage() {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        background: 'rgba(10, 31, 26, 0.95)', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                      labelStyle={{
+                          color: "#d4f4e8",      // warna label tooltip
+                          fontWeight: "bold",
+                      }}
+                      itemStyle={{
+                        color: "#d4f4e8",      // warna nilai tooltip
+                      }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+            <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+              <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+                }}
+              >
+                <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
                   Distribusi Kluster Ekonomi
                 </h2>
               </div>
@@ -738,7 +977,21 @@ export default function EkonomiPage() {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        background: 'rgba(10, 31, 26, 0.95)', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                      labelStyle={{
+                          color: "#d4f4e8",      // warna label tooltip
+                          fontWeight: "bold",
+                      }}
+                      itemStyle={{
+                        color: "#d4f4e8",      // warna nilai tooltip
+                      }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>

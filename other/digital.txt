@@ -444,123 +444,73 @@ export default function DigitalPage() {
       )
     }
 
-    // ====== MODE: LEVEL KABUPATEN ======
     if (!selectedKab) {
-      const kabupatenMap = new Map();
-
+      const kabMap = new Map()
       data.forEach(item => {
-        if (isValidCoord(item.Latitude, item.Longitude) && !kabupatenMap.has(item.NAMA_KAB)) {
-          kabupatenMap.set(item.NAMA_KAB, {
+        if (isValidCoord(item.Latitude, item.Longitude) && !kabMap.has(item.NAMA_KAB)) {
+          kabMap.set(item.NAMA_KAB, {
             lat: item.Latitude,
             lng: item.Longitude,
             name: item.NAMA_KAB,
             cluster: item.cluster,
             label: item.label,
-
-            // Ambil satu sample data untuk ditampilkan di tooltip
-            skor_digitalisasi_pemdes: item.skor_digitalisasi_pemdes,
-            skor_digital_readiness: item.skor_digital_readiness,
-          });
+          })
         }
-      });
-
-      return Array.from(kabupatenMap.values()).map(m => ({
+      })
+      return Array.from(kabMap.values()).map(m => ({
         name: m.name,
         position: [m.lat, m.lng] as [number, number],
         kabupaten: m.name,
         kecamatan: "",
-
         cluster: m.cluster,
         label: m.label,
-
-        // Data tambahan untuk tooltip
-        skor_digitalisasi_pemdes: m.skor_digitalisasi_pemdes,
-        skor_digital_readiness: m.skor_digital_readiness,
-      }));
+      }))
     }
 
-    // ====== MODE: LEVEL KECAMATAN ======
     if (selectedKab && !selectedKec) {
-      const kecamatanMap = new Map();
-
+      const kecMap = new Map()
       data
         .filter(d => d.NAMA_KAB === selectedKab)
         .forEach(item => {
           if (isValidCoord(item.Latitude, item.Longitude)) {
-            const key = `${item.NAMA_KAB}-${item.NAMA_KEC}`;
-            if (!kecamatanMap.has(key)) {
-              kecamatanMap.set(key, {
+            const key = `${item.NAMA_KAB}-${item.NAMA_KEC}`
+            if (!kecMap.has(key)) {
+              kecMap.set(key, {
                 lat: item.Latitude,
                 lng: item.Longitude,
                 name: item.NAMA_KEC,
                 kabupaten: item.NAMA_KAB,
                 cluster: item.cluster,
                 label: item.label,
-
-                // Ambil satu sample data per kecamatan
-                skor_digitalisasi_pemdes: item.skor_digitalisasi_pemdes,
-                skor_digital_readiness: item.skor_digital_readiness,
-              });
+              })
             }
           }
-        });
-
-      return Array.from(kecamatanMap.values()).map(m => ({
+        })
+      return Array.from(kecMap.values()).map(m => ({
         name: m.name,
         position: [m.lat, m.lng] as [number, number],
         kabupaten: m.kabupaten,
         kecamatan: m.name,
-
         cluster: m.cluster,
         label: m.label,
-
-        // Data tambahan untuk tooltip
-        skor_digitalisasi_pemdes: m.skor_digitalisasi_pemdes,
-        skor_digital_readiness: m.skor_digital_readiness,
-      }));
+      }))
     }
 
-    // ====== MODE: LEVEL DESA ======
     if (selectedKab && selectedKec) {
       return data
-        .filter(
-          d =>
-            d.NAMA_KAB === selectedKab &&
-            d.NAMA_KEC === selectedKec &&
-            isValidCoord(d.Latitude, d.Longitude)
-        )
+        .filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec && isValidCoord(d.Latitude, d.Longitude))
         .map(m => ({
           name: m.NAMA_DESA,
           position: [m.Latitude, m.Longitude] as [number, number],
           kabupaten: m.NAMA_KAB,
           kecamatan: m.NAMA_KEC,
-
           cluster: m.cluster,
           label: m.label,
-
-          // Data tambahan untuk tooltip
-          skor_digitalisasi_pemdes: m.skor_digitalisasi_pemdes,
-          skor_digital_readiness: m.skor_digital_readiness,
-        }));
+        }))
     }
 
-    // Default: tampilkan semua desa jika tidak ada filter
-    return data
-      .filter(m => isValidCoord(m.Latitude, m.Longitude))
-      .map(m => ({
-        name: m.NAMA_DESA,
-        position: [m.Latitude, m.Longitude] as [number, number],
-        kabupaten: m.NAMA_KAB,
-        kecamatan: m.NAMA_KEC,
-
-        cluster: m.cluster,
-        label: m.label,
-
-        // Data tambahan untuk tooltip
-        skor_digitalisasi_pemdes: m.skor_digitalisasi_pemdes,
-        skor_digital_readiness: m.skor_digital_readiness,
-      }));
-  }, [data, selectedKab, selectedKec, selectedDesa]);
+    return []
+  }, [data, selectedKab, selectedKec])
 
   const btsOperatorByKabupaten = useMemo(() => {
     if (!data.length) return []
@@ -845,12 +795,20 @@ export default function DigitalPage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[
-            { label: "Total Desa", value: stats.totalDesa, color: "from-emerald-700 to-emerald-200" },
-            { label: "Rata-rata Jumlah BTS", value: stats.avgBts, color: "from-green-700 to-green-300"  },
-            { label: "Rata-rata Jumlah Operator", value: stats.avgOperator, color: "from-teal-700 to-teal-300" },
-            { label: "Rata-rata Sinyal Internet", value: stats.avgSinyalInternet + "%", color: "from-cyan-700 to-cyan-300" },
+            { label: "Total Desa", value: stats.totalDesa, gradient: "linear-gradient(135deg, #06b6d4, #22d3ee)" },
+            { label: "Rata-rata Jumlah BTS", value: stats.avgBts, gradient: "linear-gradient(135deg, #10b981, #34d399)" },
+            { label: "Rata-rata Jumlah Operator", value: stats.avgOperator, gradient: "linear-gradient(135deg, #14b8a6, #5eead4)" },
+            { label: "Rata-rata Sinyal Internet", value: stats.avgSinyalInternet + "%", gradient: "linear-gradient(135deg, #22d3ee, #7dd3fc)" },
           ].map((stat, idx) => (
-            <div key={idx} className={`bg-gradient-to-br ${stat.color} rounded-xl p-4 shadow-lg text-white`}>
+            <div 
+              key={idx} 
+              className="rounded-xl p-4 shadow-lg text-white transition-all"
+              style={{
+                background: stat.gradient,
+                border: "1px solid rgba(34, 211, 238, 0.3)",
+                boxShadow: "0 0 20px rgba(34, 211, 238, 0.2)",
+              }}
+            >
               <p className="text-xs sm:text-sm font-medium opacity-90 mb-1">{stat.label}</p>
               <p className="text-2xl sm:text-3xl font-bold">{stat.value}</p>
             </div>
@@ -881,62 +839,20 @@ export default function DigitalPage() {
             <MapComponent
               markers={mapMarkers}
               renderTooltip={(marker) => (
-                <div
-                  className="px-4 py-3 rounded-xl shadow-lg bg-[rgba(15,35,30,0.9)] border border-[rgba(34,211,238,0.4)] backdrop-blur-sm text-white space-y-2 max-w-xs"
-                  style={{
-                    boxShadow: "0 4px 16px rgba(34,211,238,0.2)",
-                    fontSize: '14px',
-                    lineHeight: '1.5'
-                  }}
-                >
-                  {/* Nama Utama */}
-                  <div className="font-bold text-lg tracking-tight text-[#d4f4e8]">
-                    {marker.name}
-                  </div>
-
-                  {/* Informasi Lokasi */}
-                  <div className="space-y-1 text-xs text-[#a8dcc8]">
-                    {marker.kecamatan && (
-                      <div className="flex items-center gap-1">
-                        <span className="text-[12px]">📍</span>
-                        <span>Kec. {marker.kecamatan}</span>
-                      </div>
-                    )}
-                    {marker.kabupaten && (
-                      <div className="flex items-center gap-1">
-                        <span className="text-[12px]">🏛️</span>
-                        <span>Kab. {marker.kabupaten}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Badge Label (seperti contoh visual) */}
+                <div className="text-sm">
+                  <div className="font-semibold" style={{ color: "#d4f4e8" }}>{marker.name}</div>
+                  {marker.kecamatan && <div style={{ color: "#a8dcc8" }}>Kec. {marker.kecamatan}</div>}
+                  {marker.kabupaten && <div style={{ color: "#a8dcc8" }}>Kab. {marker.kabupaten}</div>}
                   {marker.label && (
-                    <div
-                      className="mt-2 px-3 py-1.5 rounded-lg font-semibold text-sm text-[#22d3ee] bg-[rgba(34,211,238,0.15)] border border-[rgba(34,211,238,0.3)] whitespace-nowrap"
+                    <div 
+                      className="mt-1 px-2 py-1 rounded text-xs font-medium inline-block"
                       style={{
-                        boxShadow: "inset 0 0 4px rgba(34,211,238,0.2)"
+                        background: "rgba(34, 211, 238, 0.2)",
+                        color: "#22d3ee",
+                        border: "1px solid rgba(34, 211, 238, 0.4)",
                       }}
                     >
                       {marker.label}
-                    </div>
-                  )}
-
-                  {/* Skor Tambahan */}
-                  {(marker.skor_digitalisasi_pemdes !== undefined || marker.skor_digital_readiness !== undefined) && (
-                    <div className="mt-2 pt-2 border-t border-gray-700 space-y-1">
-                      {marker.skor_digitalisasi_pemdes !== undefined && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Digitalisasi Pemdes:</span>
-                          <span className="font-medium text-[#22d3ee]">{Number(marker.skor_digitalisasi_pemdes).toFixed(1)}</span>
-                        </div>
-                      )}
-                      {marker.skor_digital_readiness !== undefined && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Digital Readiness:</span>
-                          <span className="font-medium text-[#22d3ee]">{Number(marker.skor_digital_readiness).toFixed(1)}</span>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -989,17 +905,11 @@ export default function DigitalPage() {
                     <Tooltip 
                       contentStyle={{ 
                         background: 'rgba(10, 31, 26, 0.95)', 
-                        border: '1px solid #e5e7eb',
+                        border: '1px solid rgba(34, 211, 238, 0.3)',
                         borderRadius: '8px',
-                        fontSize: '12px'
+                        fontSize: '12px',
+                        color: '#d4f4e8',
                       }} 
-                      labelStyle={{
-                          color: "#d4f4e8",      // warna label tooltip
-                          fontWeight: "bold",
-                      }}
-                      itemStyle={{
-                        color: "#d4f4e8",      // warna nilai tooltip
-                      }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -1183,7 +1093,7 @@ export default function DigitalPage() {
                       }} 
                     />
                     <Legend wrapperStyle={{ fontSize: '12px', color: '#a8dcc8' }} />
-                    <Bar dataKey="avg" fill="#22d3ee" name="Rata-rata" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="avg" fill="#34d399" name="Rata-rata" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

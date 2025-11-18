@@ -7,31 +7,63 @@ export default function AnimatedBackground() {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Jika perlu log atau debug
-    console.log("AnimatedBackground mounted")
+    console.log("AnimatedBackground mounted - Tech-Nature Fusion")
   }, [])
 
   return (
     <div className="animated-bg" ref={containerRef}>
-      {/* Bubble */}
+      {/* Scanning line effect */}
+      <div className="scan-line"></div>
+
+      {/* Bubble - Glowing emerald orbs */}
       <div
         className="bubble"
         style={{
-          width: "200px",
-          height: "200px",
-          left: "10%",
-          top: "20%",
+          width: "320px",
+          height: "320px",
+          left: "5%",
+          top: "15%",
           animationDelay: "0s",
         }}
       ></div>
       <div
         className="bubble"
         style={{
-          width: "150px",
-          height: "150px",
-          right: "15%",
-          top: "40%",
-          animationDelay: "3s",
+          width: "240px",
+          height: "240px",
+          right: "8%",
+          top: "35%",
+          animationDelay: "4s",
+        }}
+      ></div>
+      <div
+        className="bubble"
+        style={{
+          width: "280px",
+          height: "280px",
+          left: "52%",
+          bottom: "12%",
+          animationDelay: "8s",
+        }}
+      ></div>
+      <div
+        className="bubble"
+        style={{
+          width: "200px",
+          height: "200px",
+          right: "32%",
+          top: "52%",
+          animationDelay: "12s",
+        }}
+      ></div>
+      <div
+        className="bubble"
+        style={{
+          width: "220px",
+          height: "220px",
+          left: "22%",
+          bottom: "22%",
+          animationDelay: "16s",
         }}
       ></div>
       <div
@@ -39,89 +71,119 @@ export default function AnimatedBackground() {
         style={{
           width: "180px",
           height: "180px",
-          left: "60%",
-          bottom: "20%",
-          animationDelay: "6s",
-        }}
-      ></div>
-      <div
-        className="bubble"
-        style={{
-          width: "120px",
-          height: "120px",
-          right: "40%",
-          top: "60%",
-          animationDelay: "9s",
-        }}
-      ></div>
-      <div
-        className="bubble"
-        style={{
-          width: "160px",
-          height: "160px",
-          left: "30%",
-          bottom: "30%",
-          animationDelay: "12s",
+          right: "58%",
+          top: "68%",
+          animationDelay: "20s",
         }}
       ></div>
 
-      {/* Gradient Orb */}
+      {/* Gradient Orb - Ambient glow */}
       <div
         className="gradient-orb"
         style={{
-          width: "400px",
-          height: "400px",
-          background: "radial-gradient(circle, rgba(93,184,168,0.2), transparent)",
-          left: "-100px",
-          top: "-100px",
+          width: "550px",
+          height: "550px",
+          background: "radial-gradient(circle, rgba(16, 185, 129, 0.12), transparent)",
+          left: "-180px",
+          top: "-180px",
           animationDelay: "0s",
         }}
       ></div>
       <div
         className="gradient-orb"
         style={{
-          width: "350px",
-          height: "350px",
-          background: "radial-gradient(circle, rgba(125,211,192,0.15), transparent)",
-          right: "-80px",
-          bottom: "-80px",
-          animationDelay: "5s",
+          width: "500px",
+          height: "500px",
+          background: "radial-gradient(circle, rgba(20, 184, 166, 0.15), transparent)",
+          right: "-120px",
+          bottom: "-120px",
+          animationDelay: "6s",
         }}
       ></div>
       <div
         className="gradient-orb"
         style={{
-          width: "300px",
-          height: "300px",
-          background: "radial-gradient(circle, rgba(70,150,150,0.2), transparent)",
-          left: "50%",
-          top: "50%",
-          animationDelay: "10s",
+          width: "450px",
+          height: "450px",
+          background: "radial-gradient(circle, rgba(34, 211, 238, 0.1), transparent)",
+          left: "42%",
+          top: "42%",
+          animationDelay: "12s",
+        }}
+      ></div>
+      <div
+        className="gradient-orb"
+        style={{
+          width: "400px",
+          height: "400px",
+          background: "radial-gradient(circle, rgba(16, 185, 129, 0.08), transparent)",
+          left: "18%",
+          bottom: "18%",
+          animationDelay: "18s",
+        }}
+      ></div>
+      <div
+        className="gradient-orb"
+        style={{
+          width: "380px",
+          height: "380px",
+          background: "radial-gradient(circle, rgba(6, 182, 212, 0.1), transparent)",
+          right: "45%",
+          top: "55%",
+          animationDelay: "24s",
         }}
       ></div>
 
-      {/* Geometric Shape */}
+      {/* Geometric Shape - Tech elements */}
+      <div
+        className="geometric-shape"
+        style={{
+          width: "110px",
+          height: "110px",
+          background: "linear-gradient(45deg, rgba(52, 211, 153, 0.25), rgba(34, 211, 238, 0.15))",
+          left: "16%",
+          top: "26%",
+          clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
+          border: "1px solid rgba(34, 211, 238, 0.3)",
+        }}
+      ></div>
+      <div
+        className="geometric-shape"
+        style={{
+          width: "90px",
+          height: "90px",
+          background: "linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(20, 184, 166, 0.15))",
+          right: "20%",
+          top: "45%",
+          borderRadius: "50%",
+          animationDelay: "5s",
+          border: "1px solid rgba(16, 185, 129, 0.3)",
+        }}
+      ></div>
+      <div
+        className="geometric-shape"
+        style={{
+          width: "100px",
+          height: "100px",
+          background: "linear-gradient(90deg, rgba(34, 211, 238, 0.2), rgba(16, 185, 129, 0.15))",
+          left: "62%",
+          bottom: "35%",
+          clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)",
+          animationDelay: "10s",
+          border: "1px solid rgba(34, 211, 238, 0.25)",
+        }}
+      ></div>
       <div
         className="geometric-shape"
         style={{
           width: "80px",
           height: "80px",
-          background: "linear-gradient(45deg, rgba(125, 211, 192, 0.3), rgba(93, 184, 168, 0.2))",
-          left: "20%",
-          top: "30%",
-          clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
-        }}
-      ></div>
-      <div
-        className="geometric-shape"
-        style={{
-          width: "60px",
-          height: "60px",
-          background: "linear-gradient(135deg, rgba(70, 150, 150, 0.3), rgba(125, 211, 192, 0.2))",
-          right: "25%",
-          top: "50%",
-          borderRadius: "50%",
-          animationDelay: "4s",
+          background: "linear-gradient(180deg, rgba(20, 184, 166, 0.2), rgba(16, 185, 129, 0.12))",
+          left: "38%",
+          top: "62%",
+          borderRadius: "30%",
+          animationDelay: "15s",
+          border: "1px solid rgba(20, 184, 166, 0.3)",
         }}
       ></div>
       <div
@@ -129,119 +191,78 @@ export default function AnimatedBackground() {
         style={{
           width: "70px",
           height: "70px",
-          background: "linear-gradient(90deg, rgba(93, 184, 168, 0.3), rgba(70, 150, 150, 0.2))",
-          left: "70%",
-          bottom: "40%",
-          clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)",
-          animationDelay: "8s",
+          background: "linear-gradient(225deg, rgba(34, 211, 238, 0.18), rgba(6, 182, 212, 0.12))",
+          right: "48%",
+          bottom: "48%",
+          clipPath: "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)",
+          animationDelay: "20s",
+          border: "1px solid rgba(34, 211, 238, 0.28)",
         }}
       ></div>
 
-      {/* Sparkle */}
-      <div
-        className="sparkle"
-        style={{
-          left: "15%",
-          top: "25%",
-          animationDelay: "0s",
-        }}
-      ></div>
-      <div
-        className="sparkle"
-        style={{
-          right: "20%",
-          top: "35%",
-          animationDelay: "1s",
-        }}
-      ></div>
-      <div
-        className="sparkle"
-        style={{
-          left: "45%",
-          top: "15%",
-          animationDelay: "2s",
-        }}
-      ></div>
-      <div
-        className="sparkle"
-        style={{
-          right: "35%",
-          bottom: "30%",
-          animationDelay: "3s",
-        }}
-      ></div>
-      <div
-        className="sparkle"
-        style={{
-          left: "25%",
-          bottom: "25%",
-          animationDelay: "1.5s",
-        }}
-      ></div>
-      <div
-        className="sparkle"
-        style={{
-          right: "50%",
-          top: "60%",
-          animationDelay: "2.5s",
-        }}
-      ></div>
-      <div
-        className="sparkle"
-        style={{
-          left: "55%",
-          bottom: "35%",
-          animationDelay: "3.5s",
-        }}
-      ></div>
+      {/* Sparkle - Neon stars */}
+      {[
+        { left: "10%", top: "20%", delay: "0s" },
+        { right: "15%", top: "30%", delay: "1s" },
+        { left: "40%", top: "10%", delay: "2s" },
+        { right: "28%", bottom: "25%", delay: "3s" },
+        { left: "20%", bottom: "20%", delay: "1.5s" },
+        { right: "45%", top: "55%", delay: "2.5s" },
+        { left: "50%", bottom: "30%", delay: "3.5s" },
+        { right: "22%", top: "72%", delay: "0.8s" },
+        { left: "65%", top: "40%", delay: "1.8s" },
+        { right: "60%", bottom: "55%", delay: "2.8s" },
+        { left: "8%", top: "60%", delay: "3.2s" },
+        { right: "10%", bottom: "15%", delay: "0.5s" },
+      ].map((pos, i) => (
+        <div
+          key={`sparkle-${i}`}
+          className="sparkle"
+          style={{
+            ...pos,
+            animationDelay: pos.delay,
+          }}
+        ></div>
+      ))}
 
       {/* Wave Pattern */}
       <div className="wave-pattern"></div>
 
-      {/* Particle */}
-      {[...Array(12)].map((_, i) => (
+      {/* Particle - Rising data points */}
+      {[...Array(18)].map((_, i) => (
         <div
-          key={i}
+          key={`particle-${i}`}
           className="particle"
           style={{
-            left: `${10 + (i % 6) * 15}%`,
+            left: `${6 + (i % 8) * 12}%`,
             bottom: "0",
             animationDelay: `${i * 1.5}s`,
           }}
         ></div>
       ))}
 
-      {/* Pulse Ring */}
-      <div
-        className="pulse-ring"
-        style={{
-          width: "100px",
-          height: "100px",
-          left: "20%",
-          top: "40%",
-          animationDelay: "0s",
-        }}
-      ></div>
-      <div
-        className="pulse-ring"
-        style={{
-          width: "120px",
-          height: "120px",
-          right: "30%",
-          top: "30%",
-          animationDelay: "2s",
-        }}
-      ></div>
-      <div
-        className="pulse-ring"
-        style={{
-          width: "80px",
-          height: "80px",
-          left: "50%",
-          bottom: "35%",
-          animationDelay: "4s",
-        }}
-      ></div>
+      {/* Pulse Ring - Scanning radar */}
+      {[
+        { width: "140px", left: "16%", top: "36%", delay: "0s" },
+        { width: "160px", right: "26%", top: "26%", delay: "2s" },
+        { width: "120px", left: "46%", bottom: "30%", delay: "4s" },
+        { width: "130px", right: "12%", bottom: "42%", delay: "3s" },
+        { width: "110px", left: "28%", top: "65%", delay: "5s" },
+      ].map((ring, i) => (
+        <div
+          key={`ring-${i}`}
+          className="pulse-ring"
+          style={{
+            width: ring.width,
+            height: ring.width,
+            left: ring.left,
+            right: ring.right,
+            top: ring.top,
+            bottom: ring.bottom,
+            animationDelay: ring.delay,
+          }}
+        ></div>
+      ))}
     </div>
   )
 }

@@ -1,3 +1,32 @@
+"use client";
+
+import React, { PropsWithChildren } from "react";
+
+// =====================================
+// GLOBAL CARD STYLE (Dark Glass Theme)
+// =====================================
+const cardStyle: React.CSSProperties = {
+  background: "rgba(10, 31, 26, 0.7)",
+  border: "1px solid rgba(34, 211, 238, 0.2)",
+  boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)",
+};
+
+// =====================================
+// REUSABLE CARD COMPONENT
+// =====================================
+type CardProps = PropsWithChildren<{
+  className?: string;
+}>;
+
+const Card = ({ children, className = "" }: CardProps) => (
+  <div className={`rounded-xl shadow-md overflow-hidden p-6 ${className}`} style={cardStyle}>
+    {children}
+  </div>
+);
+
+// =====================================
+// METODOLOGI PAGE
+// =====================================
 export default function Metodologi() {
   const metodologi = [
     {
@@ -30,62 +59,76 @@ export default function Metodologi() {
       desc: "Validasi dan pengujian model untuk memastikan akurasi",
       icon: "✓",
     },
-  ]
+  ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-black mb-2">Metodologi</h1>
-        <p className="text-gray-600">Metodologi pengembangan dashboard analitik berbasis AI</p>
-      </div>
+    <div className="space-y-8">
+      {/* HEADER */}
+      <header>
+        <h1 className="text-3xl font-bold text-white">Metodologi</h1>
+        <p className="text-teal-300">
+          Metodologi pengembangan dashboard analitik berbasis AI
+        </p>
+      </header>
 
-      {/* Methodology Steps */}
+      {/* =============================================
+          METHOD STEPS
+      ============================================== */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {metodologi.map((step, idx) => (
-          <div
-            key={idx}
-            className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6 hover:border-blue-500 transition-colors"
-          >
+          <Card key={idx} className="text-white">
             <div className="text-4xl mb-4">{step.icon}</div>
-            <h3 className="text-lg font-semibold text-black mb-2">{step.title}</h3>
-            <p className="text-black-400 text-sm">{step.desc}</p>
-          </div>
+            <h3 className="text-lg font-semibold text-teal-300 mb-2">
+              {step.title}
+            </h3>
+            <p className="text-gray-200 text-sm">{step.desc}</p>
+          </Card>
         ))}
       </div>
 
-      {/* Tech Stack */}
-      <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-black mb-4">Tech Stack</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* =============================================
+          TECH STACK
+      ============================================== */}
+      <Card>
+        <h2 className="text-lg font-semibold text-teal-300 mb-4">Tech Stack</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* FRONTEND */}
           <div>
-            <h3 className="text-black-400 font-semibold mb-2">Frontend</h3>
-            <ul className="text-balck-300 text-sm space-y-1">
+            <h3 className="text-white font-semibold mb-2">Frontend</h3>
+            <ul className="text-gray-300 text-sm space-y-1">
               <li>• React.js / Next.js</li>
               <li>• Tailwind CSS</li>
               <li>• Recharts</li>
               <li>• React Markdown</li>
             </ul>
           </div>
+
+          {/* BACKEND */}
           <div>
-            <h3 className="text-black font-semibold mb-2">Backend</h3>
-            <ul className="text-black-300 text-sm space-y-1">
+            <h3 className="text-white font-semibold mb-2">Backend</h3>
+            <ul className="text-gray-300 text-sm space-y-1">
               <li>• Node.js / Express</li>
               <li>• Google Gemini API</li>
               <li>• CORS</li>
               <li>• dotenv</li>
             </ul>
           </div>
+
+          {/* MACHINE LEARNING */}
           <div>
-            <h3 className="text-black font-semibold mb-2">Machine Learning</h3>
-            <ul className="text-black-300 text-sm space-y-1">
+            <h3 className="text-white font-semibold mb-2">Machine Learning</h3>
+            <ul className="text-gray-300 text-sm space-y-1">
               <li>• K-Means Clustering</li>
               <li>• LSTM Neural Network</li>
               <li>• Scikit-learn</li>
             </ul>
           </div>
+
+          {/* DATA PROCESSING */}
           <div>
-            <h3 className="text-black font-semibold mb-2">Data Processing</h3>
-            <ul className="text-black-300 text-sm space-y-1">
+            <h3 className="text-white font-semibold mb-2">Data Processing</h3>
+            <ul className="text-gray-300 text-sm space-y-1">
               <li>• CSV Data Loading</li>
               <li>• Data Normalization</li>
               <li>• Feature Engineering</li>
@@ -93,50 +136,32 @@ export default function Metodologi() {
             </ul>
           </div>
         </div>
-      </div>
+      </Card>
 
-      {/* Workflow */}
-      <div className="bg-white/80 backdrop-blur-sm border border-[#c9ece7] rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-black mb-4">Workflow</h2>
-        <div className="space-y-3">
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-full bg-green-900 flex items-center justify-center text-white font-bold">
-              1
+      {/* =============================================
+          WORKFLOW
+      ============================================== */}
+      <Card>
+        <h2 className="text-lg font-semibold text-teal-300 mb-4">Workflow</h2>
+
+        <div className="space-y-4">
+          {[
+            "Data diambil dari data BPS",
+            "Data dibersihkan dan divalidasi",
+            "Analisis eksplorasi dilakukan",
+            "Pengembangan model Clustering",
+            "Dashboard divisualisasikan dengan Recharts",
+            "AI Chatbot terintegrasi untuk interaksi pengguna",
+          ].map((text, index) => (
+            <div key={index} className="flex items-center gap-4">
+              <div className="w-8 h-8 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold">
+                {index + 1}
+              </div>
+              <p className="text-gray-300">{text}</p>
             </div>
-            <p className="text-black-300">Data diambil dari data BPS</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-full bg-green-900 flex items-center justify-center text-white font-bold">
-              2
-            </div>
-            <p className="text-black-300">Data dibersihkan dan divalidasi</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-full bg-green-900 flex items-center justify-center text-white font-bold">
-              3
-            </div>
-            <p className="text-black-300">Analisis eksplorasi dilakukan</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-full bg-green-900 flex items-center justify-center text-white font-bold">
-              4
-            </div>
-            <p className="text-black-300">Model machine learning (Clustering) dikembangkan</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-full bg-green-900 flex items-center justify-center text-white font-bold">
-              5
-            </div>
-            <p className="text-black-300">Dashboard divisualisasikan dengan Recharts</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-full bg-green-900 flex items-center justify-center text-white font-bold">
-              6
-            </div>
-            <p className="text-black-300">AI Chatbot terintegrasi untuk interaksi pengguna</p>
-          </div>
+          ))}
         </div>
-      </div>
+      </Card>
     </div>
-  )
+  );
 }

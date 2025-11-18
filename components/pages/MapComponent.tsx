@@ -45,23 +45,24 @@ const createCustomIcon = (color: string) => {
     html: `
       <div style="
         background-color: ${color};
-        width: 25px;
-        height: 25px;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
         border: 2px solid white;
-        box-shadow: 0 0 6px rgba(0,0,0,0.4);
+        box-shadow: 0 0 6px rgba(0,0,0,0.3);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 12px;
+        font-size: 14px;
         color: white;
         font-weight: bold;
+        cursor: pointer;
       ">
         •
       </div>
     `,
-    iconSize: [25, 25],
-    iconAnchor: [12, 12],
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
   })
 }
 
@@ -127,6 +128,7 @@ export default function MapComponent({
         minZoom={7}
         maxBounds={bounds}
         maxBoundsViscosity={1.0}
+        zoomControl={false} // 👈 TAMBAHKAN INI
         style={{ height: "100%", width: "100%" }}
         className="rounded-lg"
       >
@@ -151,22 +153,22 @@ export default function MapComponent({
       {/* LEGEND — bisa juga dipindah ke luar jika perlu */}
       {uniqueClusters.length > 0 && (
         <div
-          className="absolute top-3 left-3 bg-white p-3 rounded-lg shadow-md z-[1000] max-w-[250px]"
-          style={{ fontSize: '12px', lineHeight: '1.4' }}
+          className="absolute top-3 left-3 bg-[rgba(15,35,30,0.9)] p-3 rounded-xl shadow-lg z-[998] max-w-[260px] border border-[rgba(34,211,238,0.3)]"
+          style={{ fontSize: '13px', lineHeight: '1.6' }}
         >
-          <div className="font-bold mb-2 text-gray-800">Kluster</div>
-          <div className="space-y-1">
+          <div className="font-bold mb-2 text-[#d4f4e8]">Kluster</div>
+          <div className="space-y-1.5">
             {uniqueClusters
               .sort((a, b) => a.cluster - b.cluster)
               .map(({ cluster, label }) => {
                 const color = CLUSTER_COLORS[cluster] || "#888"
                 return (
-                  <div key={cluster} className="flex items-center gap-2">
+                  <div key={cluster} className="flex items-center gap-2.5">
                     <div
-                      className="w-4 h-4 rounded-full border border-gray-300"
+                      className="w-5 h-5 rounded-full border border-[rgba(255,255,255,0.2)]"
                       style={{ backgroundColor: color }}
                     ></div>
-                    <span className="text-gray-700">{label}</span>
+                    <span className="text-[#a8dcc8]">{label}</span>
                   </div>
                 )
               })}
