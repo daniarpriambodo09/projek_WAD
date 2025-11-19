@@ -483,32 +483,121 @@ export default function OverviewPage() {
     }
   }, [activeData])
 
+  // === RINGKASAN NUMERIK UNTUK CHATBOT ===
   const visibleDataSummary = useMemo(() => {
-    if (!activeData.length) return null
-    const totalDesa = activeData.length
-    const avg = (key: keyof ClusterTipologiData) =>
-      (activeData.reduce((sum, d) => sum + (d[key] as number || 0), 0) / totalDesa).toFixed(1)
+    if (!activeData.length) return null;
 
-    let wilayah = "Provinsi Jawa Timur"
-    if (selectedKab && !selectedKec) wilayah = `Kabupaten ${selectedKab}`
-    else if (selectedKab && selectedKec) wilayah = `Kecamatan ${selectedKec}, Kabupaten ${selectedKab}`
+    const totalDesa = activeData.length;
+    const avg = (key: keyof ClusterTipologiData) => {
+      // Filter data yang valid (bukan null/undefined/NaN)
+      const valid = activeData.filter(d => d[key] != null && !isNaN(d[key] as number));
+      if (valid.length === 0) return 0;
+      const sum = valid.reduce((acc, d) => acc + (d[key] as number), 0);
+      return Number((sum / valid.length).toFixed(1));
+    };
+
+    let wilayah = "Provinsi Jawa Timur";
+    if (selectedKab && !selectedKec) wilayah = `Kabupaten ${selectedKab}`;
+    else if (selectedKab && selectedKec) wilayah = `Kecamatan ${selectedKec}, Kabupaten ${selectedKab}`;
+
+    // Cari desa terbaik & terburuk berdasarkan skor_konektivitas (bisa diganti skor utama lainnya jika lebih representatif)
+    let desaTerburuk: ClusterTipologiData | null = null;
+    let desaTerbaik: ClusterTipologiData | null = null;
+    let skorMin = Infinity;
+    let skorMax = -Infinity;
+
+    if (selectedKab && selectedKec) {
+      activeData.forEach(des => {
+        const skor = des.skor_konektivitas; // Gunakan skor utama untuk menentukan terbaik/terburuk
+        if (skor < skorMin) {
+          skorMin = skor;
+          desaTerburuk = des;
+        }
+        if (skor > skorMax) {
+          skorMax = skor;
+          desaTerbaik = des;
+        }
+      });
+    }
+
+    // Agregasi per Kabupaten untuk Top 5
+    const byKab = data.reduce((acc, d) => {
+      const key = d.NAMA_KAB;
+      if (!acc[key]) {
+        acc[key] = { nama: key, total: 0, count: 0 };
+      }
+      acc[key].total += d.skor_konektivitas; // Gunakan skor utama
+      acc[key].count += 1;
+      return acc;
+    }, {} as Record<string, { nama: string; total: number; count: number }>);
+
+    const listKab = Object.values(byKab).map(k => ({
+      nama: k.nama,
+      skor: k.total / k.count,
+    }));
+
+    const sortedKab = [...listKab].sort((a, b) => b.skor - a.skor);
+    const top5Terbaik = sortedKab.slice(0, 5);
+    const top5Terburuk = sortedKab.slice(-5).reverse();
+
+    // Distribusi kluster final_label
+    const distribusiKluster = activeData.reduce(
+      (acc, d) => {
+        acc[d.final_label] = (acc[d.final_label] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     return {
       wilayah,
       jumlah_desa: totalDesa,
       rata_rata_skor: {
-        akses_dasar: parseFloat(avg("skor_akses_dasar")),
-        kesejahteraan: parseFloat(avg("skor_kesejahteraan")),
-        digital: parseFloat(avg("skor_digital_readiness")),
-        konektivitas: parseFloat(avg("skor_konektivitas")),
-        lingkungan: parseFloat(avg("skor_kualitas_lingkungan")),
+        akses_dasar: avg("skor_akses_dasar"),
+        konektivitas: avg("skor_konektivitas"),
+        pengelolaan_lingkungan: avg("skor_pengelolaan_lingkungan"),
+        kesejahteraan: avg("skor_kesejahteraan"),
+        kelembagaan_ekonomi: avg("skor_kelembagaan_ekonomi"),
+        produktivitas_ekonomi: avg("skor_produktivitas_ekonomi"),
+        akses_kesehatan: avg("skor_akses_kesehatan"),
+        kualitas_kesehatan: avg("skor_kualitas_kesehatan"),
+        program_kesehatan: avg("skor_program_kesehatan"),
+        pendidikan_lanjut: avg("skor_pendidikan_lanjut"),
+        literasi_masyarakat: avg("skor_literasi_masyarakat"),
+        kualitas_lingkungan: avg("skor_kualitas_lingkungan"),
+        ketahanan_bencana: avg("skor_ketahanan_bencana"),
+        digital_readiness: avg("skor_digital_readiness"),
+        karakteristik_khusus: avg("skor_karakteristik_khusus"),
       },
-      distribusi_kluster: activeData.reduce((acc, d) => {
-        acc[d.final_label] = (acc[d.final_label] || 0) + 1
-        return acc
-      }, {} as Record<string, number>),
-    }
-  }, [activeData, selectedKab, selectedKec])
+      distribusi_kluster: distribusiKluster,
+      desa_dengan_konektivitas_terburuk: desaTerburuk
+        ? {
+            nama_desa: (desaTerburuk as ClusterTipologiData).NAMA_DESA,
+            nama_kecamatan: (desaTerburuk as ClusterTipologiData).NAMA_KEC,
+            nama_kabupaten: (desaTerburuk as ClusterTipologiData).NAMA_KAB,
+            skor_konektivitas: (desaTerburuk as ClusterTipologiData).skor_konektivitas,
+            skor_akses_dasar: (desaTerburuk as ClusterTipologiData).skor_akses_dasar,
+            skor_kesejahteraan: (desaTerburuk as ClusterTipologiData).skor_kesejahteraan,
+            final_label: (desaTerburuk as ClusterTipologiData).final_label,
+          }
+        : null,
+      desa_dengan_konektivitas_terbaik: desaTerbaik
+        ? {
+            nama_desa: (desaTerbaik as ClusterTipologiData).NAMA_DESA,
+            nama_kecamatan: (desaTerbaik as ClusterTipologiData).NAMA_KEC,
+            nama_kabupaten: (desaTerbaik as ClusterTipologiData).NAMA_KAB,
+            skor_konektivitas: (desaTerbaik as ClusterTipologiData).skor_konektivitas,
+            skor_akses_dasar: (desaTerbaik as ClusterTipologiData).skor_akses_dasar,
+            skor_kesejahteraan: (desaTerbaik as ClusterTipologiData).skor_kesejahteraan,
+            final_label: (desaTerbaik as ClusterTipologiData).final_label,
+          }
+        : null,
+      // Gunakan top5 dari agregasi kabupaten
+      top5_terbaik: top5Terbaik,
+      top5_terburuk: top5Terburuk,
+      globalInsights: null, // Bisa ditambahkan jika perlu, misalnya kab/kec terbaik
+    };
+  }, [activeData, data, selectedKab, selectedKec]); // Tambahkan `data` ke dependency jika digunakan untuk top5
 
   useEffect(() => {
     if (visibleDataSummary) {

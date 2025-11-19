@@ -53,6 +53,7 @@ export default function Chatbot() {
     setMessages((prev) => [...prev, { role: "user", content: userMessage, timestamp: new Date() }]);
     setLoading(true);
 
+    const isTipologi = pageContext.pageId === "overview";
     const isInfrastruktur = pageContext.pageId === "infrastruktur";
     const isKesehatan = pageContext.pageId === "kesehatan";
     const isPendidikan = pageContext.pageId === "pendidikan";
@@ -132,6 +133,13 @@ export default function Chatbot() {
           contextStr += `  • Komputer Desa: ${skor.komputer_desa?.toFixed(1) || "–"}\n`;
           contextStr += `  • Internet Kantor: ${skor.internet_kantor?.toFixed(1) || "–"}\n`;
           contextStr += `  • SID: ${skor.sid?.toFixed(1) || "–"}\n`;
+        } else if (isTipologi) {
+          contextStr += `- Rata-rata skor berdasarkan komponen tipologi:\n`;
+          contextStr += `  • Akses Dasar: ${skor.akses_dasar?.toFixed(1) || "–"}\n`;
+          contextStr += `  • Konektivitas: ${skor.konektivitas?.toFixed(1) || "–"}\n`;
+          contextStr += `  • Kesejahteraan: ${skor.kesejahteraan?.toFixed(1) || "–"}\n`;
+          contextStr += `  • Kualitas Lingkungan: ${skor.kualitas_lingkungan?.toFixed(1) || "–"}\n`;
+          contextStr += `  • Digital Readiness: ${skor.digital_readiness?.toFixed(1) || "–"}\n`;
         }
       }
 
@@ -225,7 +233,20 @@ export default function Chatbot() {
             contextStr += `  • Sinyal Internet: ${d.sinyal_internet}%, Warnet: ${d.warnet}, Komputer: ${d.komputer_desa}\n`;
             contextStr += `  • Kluster: ${d.label_kluster}\n`;
           }
+      } else if (isTipologi) {
+        if (visibleDataSummary.desa_dengan_konektivitas_terburuk) {
+          const d = visibleDataSummary.desa_dengan_konektivitas_terburuk;
+          contextStr += `- Desa dengan konektivitas terburuk: ${d.nama_desa} (Kec. ${d.nama_kecamatan}, Kab. ${d.nama_kabupaten})\n`;
+          contextStr += `  • Skor: Konektivitas=${d.skor_konektivitas}, Akses Dasar=${d.skor_akses_dasar}\n`;
+          contextStr += `  • Tipologi: ${d.final_label}\n`;
         }
+        if (visibleDataSummary.desa_dengan_konektivitas_terbaik) {
+          const d = visibleDataSummary.desa_dengan_konektivitas_terbaik;
+          contextStr += `- Desa dengan konektivitas terbaik: ${d.nama_desa} (Kec. ${d.nama_kecamatan}, Kab. ${d.nama_kabupaten})\n`;
+          contextStr += `  • Skor: Konektivitas=${d.skor_konektivitas}, Akses Dasar=${d.skor_akses_dasar}\n`;
+          contextStr += `  • Tipologi: ${d.final_label}\n`;
+        }
+      }
 
       if (visibleDataSummary.top5_terbaik && visibleDataSummary.top5_terbaik.length > 0) {
         contextStr += `- 5 besar ${domain} terbaik di Jawa Timur:\n`;
@@ -288,6 +309,12 @@ export default function Chatbot() {
       - Fokus pada: perluasan BTS, peningkatan sinyal internet, penyediaan komputer desa, dan pengaktifan SID.
       - Contoh: "Bangun 1 BTS di desa X yang sinyal internetnya <50%."
       - Prioritaskan desa tanpa warnet atau internet kantor desa.`;
+    } else if (isTipologi) {
+      kebijakanInstruksi = `Jika diminta rekomendasi kebijakan untuk tipologi desa:
+      - Fokus pada pendekatan holistik dan lintas sektor berdasarkan final_label (misal: Desa Tertinggal Prioritas, Desa Agraris Berkembang, dsb.).
+      - Gunakan data multidimensional dari akses dasar, konektivitas, kesejahteraan, lingkungan, ekonomi, kesehatan, pendidikan, dan digital.
+      - Contoh: "Fokuskan intervensi di Desa X (final_label: Desa Tertinggal Prioritas) pada peningkatan akses dasar dan konektivitas untuk mempercepat pemerataan."
+      - Prioritaskan desa dengan skor terendah di aspek kunci sesuai tipologinya.`;
     }else {
         kebijakanInstruksi = `Jika diminta rekomendasi kebijakan, berikan 3 rekomendasi konkret berbasis data yang relevan dengan konteks halaman ini.`;
     }
