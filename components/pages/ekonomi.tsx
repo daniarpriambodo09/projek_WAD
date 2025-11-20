@@ -721,6 +721,28 @@ export default function EkonomiPage() {
                   <label className="text-xs font-bold mb-1 block" style={{ 
                     color: "#ffffff",
                     textShadow: "0 0 8px rgba(34, 211, 238, 0.6)"
+                  }}>Kabupaten</label>
+                  <select
+                    value={selectedKab}
+                    onChange={(e) => setSelectedKab(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2"
+                    style={{
+                      background: "rgba(16, 185, 129, 0.15)",
+                      border: "2px solid rgba(34, 211, 238, 0.5)",
+                      color: "#ffffff",
+                      boxShadow: "0 0 15px rgba(34, 211, 238, 0.3), inset 0 0 10px rgba(10, 31, 26, 0.8)",
+                    }}
+                  >
+                    <option value="" style={{ background: "#0a1f1a", color: "#ffffff" }}>Semua Kabupaten</option>
+                    {[...new Set(data.map(d => d.NAMA_KAB))].sort().map(kab => (
+                      <option key={kab} value={kab} style={{ background: "#0a1f1a", color: "#ffffff" }}>{kab}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold mb-1 block" style={{ 
+                    color: "#ffffff",
+                    textShadow: "0 0 8px rgba(34, 211, 238, 0.6)"
                   }}>Kecamatan</label>
                   <select
                     value={selectedKec}
