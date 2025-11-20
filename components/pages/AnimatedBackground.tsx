@@ -1,4 +1,4 @@
-// app/components/AnimatedBackground.tsx
+// siDesa/components/AnimatedBackground.tsx
 "use client"
 
 import { useEffect, useRef } from "react"

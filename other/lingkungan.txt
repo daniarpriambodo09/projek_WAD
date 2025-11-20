@@ -1,4 +1,4 @@
-// src/app/(your-path)/digital.tsx
+// src/app/(your-path)/lingkungan.tsx
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
@@ -18,24 +18,24 @@ import {
   Cell,
 } from "recharts"
 import dynamic from "next/dynamic"
-
-import { useChatbotContext } from "@/context/ChatbotContext"
 import { supabase } from "@/lib/supabaseClient"
+import { useChatbotContext } from "@/context/ChatbotContext"
 
-interface DigitalData {
+interface LingkunganData {
+  IDDESA: string
   NAMA_KAB: string
   NAMA_KEC: string
   NAMA_DESA: string
-  jumlah_bts: number
-  jumlah_operator: number
-  sinyal_telepon: number
-  sinyal_internet: number
-  ada_warnet: number
-  komputer_desa: number
-  internet_kantordesa: number
-  sid: number
-  skor_digitalisasi_pemdes : number
-  skor_digital_readiness : number
+  skor_pengelolaan_sampah: number
+  total_pencemaran: number
+  skor_kualitas_lingkungan: number
+  total_bencana: number
+  tingkat_kerawanan: number
+  skor_ketahanan_bencana: number
+  skor_mitigasi_bencana: number
+  skor_pelestarian: number
+  skor_lingkungan_total: number
+  kategori_lingkungan: string
   cluster: number
   label: string
   Latitude: number
@@ -45,14 +45,8 @@ interface DigitalData {
 const MapComponent = dynamic(() => import("./MapComponent"), {
   ssr: false,
   loading: () => (
-    <div 
-      className="h-56 sm:h-80 md:h-96 rounded-lg animate-pulse flex items-center justify-center"
-      style={{
-        background: "rgba(10, 31, 26, 0.6)",
-        border: "1px solid rgba(34, 211, 238, 0.2)",
-      }}
-    >
-      <p className="text-sm" style={{ color: "#a8dcc8" }}>Memuat peta...</p>
+    <div className="h-56 sm:h-80 md:h-96 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+      <p className="text-gray-500 text-sm">Memuat peta...</p>
     </div>
   ),
 })
@@ -63,7 +57,6 @@ const wrapText = (text: string, maxCharsPerLine = 18) => {
   const words = text.split(" ");
   const lines: string[] = [];
   let currentLine = "";
-
   words.forEach((word) => {
     const candidate = currentLine ? `${currentLine} ${word}` : word;
     if (candidate.length > maxCharsPerLine) {
@@ -73,7 +66,6 @@ const wrapText = (text: string, maxCharsPerLine = 18) => {
       currentLine = candidate;
     }
   });
-
   if (currentLine) lines.push(currentLine);
   return lines;
 };
@@ -87,12 +79,11 @@ const renderCustomLabel = (props: any) => {
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
   const lines = wrapText(String(name), 25);
   const anchor = x > cx ? "start" : "end";
-
   return (
     <text
       x={x}
       y={y}
-      fill="#d4f4e8"
+      fill="#ffff"
       textAnchor={anchor}
       dominantBaseline="central"
       fontSize={12}
@@ -102,30 +93,25 @@ const renderCustomLabel = (props: any) => {
           {line}
         </tspan>
       ))}
-      <tspan x={x} dy="1em" fontWeight="bold" fill="#22d3ee">
+      <tspan x={x} dy="1em" fontWeight="bold">
         {`${(percent * 100).toFixed(0)}%`}
       </tspan>
     </text>
   );
 };
 
-export default function DigitalPage() {
-  const [data, setData] = useState<DigitalData[]>([])
+export default function LingkunganPage() {
+  const [data, setData] = useState<LingkunganData[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
 
-  // Filter State
   const [selectedKab, setSelectedKab] = useState<string>("")
   const [selectedKec, setSelectedKec] = useState<string>("")
   const [selectedDesa, setSelectedDesa] = useState<string>("")
   const [kecamatanOptions, setKecamatanOptions] = useState<string[]>([])
   const [desaOptions, setDesaOptions] = useState<string[]>([])
-
-  // Filter Komponen untuk Grafik
-  const [selectedBtsOperator, setSelectedBtsOperator] = useState<string>("bts")
-  const [selectedSignal, setSelectedSignal] = useState<string>("telepon")
 
   const {setPageContext} = useChatbotContext();
 
@@ -138,22 +124,22 @@ export default function DigitalPage() {
         acc[key] = {
           nama_kab: key,
           desa_count: 0,
-          total_skor_digital: 0,
+          total_lingkungan: 0,
         };
       }
-      const skor = d.skor_digital_readiness;
       acc[key].desa_count += 1;
-      acc[key].total_skor_digital += skor;
+      acc[key].total_lingkungan += d.skor_lingkungan_total;
       return acc;
     }, {} as Record<string, any>);
 
     return Object.values(agg).map((kab: any) => ({
       nama_kab: kab.nama_kab,
       desa_count: kab.desa_count,
-      skor_rata_rata: kab.total_skor_digital / kab.desa_count,
+      skor_rata_rata: kab.total_lingkungan / kab.desa_count,
     }));
   }, [data]);
 
+  // === GLOBAL INSIGHTS: Kabupaten/Kecamatan Terbaik & Terburuk ===
   const [kabupatenTerbaik, kabupatenTerburuk] = useMemo(() => {
     if (!kabupatenAggregates.length) return [null, null];
     let best = kabupatenAggregates[0];
@@ -165,16 +151,14 @@ export default function DigitalPage() {
     return [best, worst];
   }, [kabupatenAggregates]);
 
-  const top5Digital = useMemo(() => {
+  // === TOP 5 PROVINSI (KABUPATEN) ===
+  const top5Lingkungan = useMemo(() => {
     if (!data.length) return { terbaik: [], terburuk: [] };
-
+    
     const byKab = data.reduce((acc, d) => {
       const key = d.NAMA_KAB;
-      if (!acc[key]) {
-        acc[key] = { nama: key, total: 0, count: 0 };
-      }
-      const skor = d.skor_digital_readiness;
-      acc[key].total += skor;
+      if (!acc[key]) acc[key] = { nama: key, total: 0, count: 0 };
+      acc[key].total += d.skor_lingkungan_total;
       acc[key].count += 1;
       return acc;
     }, {} as Record<string, { nama: string; total: number; count: number }>);
@@ -191,6 +175,7 @@ export default function DigitalPage() {
     };
   }, [data]);
 
+  // === DATA UNTUK ANALISIS PER KECAMATAN (abaikan desa) ===
   const kecamatanData = useMemo(() => {
     if (!data.length) return [];
     let result = data;
@@ -199,36 +184,39 @@ export default function DigitalPage() {
     return result;
   }, [data, selectedKab, selectedKec]);
 
+  // === RINGKASAN NUMERIK UNTUK CHATBOT ===
   const visibleDataSummary = useMemo(() => {
     if (!data.length || !kecamatanData.length) return null;
 
     const totalDesa = kecamatanData.length;
-    const avg = (key: keyof DigitalData) =>
+    const avg = (key: keyof LingkunganData) =>
       (kecamatanData.reduce((sum, d) => sum + (d[key] as number), 0) / totalDesa).toFixed(1);
 
     let wilayah = "Provinsi Jawa Timur";
     if (selectedKab && !selectedKec) wilayah = `Kabupaten ${selectedKab}`;
     else if (selectedKab && selectedKec) wilayah = `Kecamatan ${selectedKec}, Kabupaten ${selectedKab}`;
 
-    let desaTerburuk: DigitalData | null = null;
-    let desaTerbaik: DigitalData | null = null;
+    // Cari desa terbaik & terburuk (hanya saat di level kecamatan)
+    let desaTerburuk: LingkunganData | null = null;
+    let desaTerbaik: LingkunganData | null = null;
     let skorMin = Infinity;
     let skorMax = -Infinity;
 
     if (selectedKab && selectedKec) {
       kecamatanData.forEach(des => {
-        const skor = des.skor_digital_readiness
-        if (skor < skorMin) {
-          skorMin = skor;
+        const totalSkor = des.skor_lingkungan_total;
+        if (totalSkor < skorMin) {
+          skorMin = totalSkor;
           desaTerburuk = des;
         }
-        if (skor > skorMax) {
-          skorMax = skor;
+        if (totalSkor > skorMax) {
+          skorMax = totalSkor;
           desaTerbaik = des;
         }
       });
     }
 
+    // Global insights
     let globalInsights = null;
     if (!selectedKab && !selectedKec) {
       globalInsights = { kabupatenTerbaik, kabupatenTerburuk };
@@ -241,7 +229,7 @@ export default function DigitalPage() {
             acc[key] = { nama_kec: key, desa_count: 0, total_skor: 0 };
           }
           acc[key].desa_count += 1;
-          acc[key].total_skor += d.skor_digital_readiness;
+          acc[key].total_skor += d.skor_lingkungan_total;
           return acc;
         }, {} as Record<string, any>);
 
@@ -267,66 +255,51 @@ export default function DigitalPage() {
       wilayah,
       jumlah_desa: totalDesa,
       rata_rata_skor: {
-        bts: parseFloat(avg("jumlah_bts")),
-        operator: parseFloat(avg("jumlah_operator")),
-        sinyal_telepon: parseFloat(avg("sinyal_telepon")),
-        sinyal_internet: parseFloat(avg("sinyal_internet")),
-        warnet: parseFloat(avg("ada_warnet")),
-        komputer_desa: parseFloat(avg("komputer_desa")),
-        internet_kantor: parseFloat(avg("internet_kantordesa")),
-        sid: parseFloat(avg("sid")),
+        pengelolaan_sampah: parseFloat(avg("skor_pengelolaan_sampah")),
+        kualitas_lingkungan: parseFloat(avg("skor_kualitas_lingkungan")),
+        ketahanan_bencana: parseFloat(avg("skor_ketahanan_bencana")),
+        mitigasi_bencana: parseFloat(avg("skor_mitigasi_bencana")),
+        pelestarian: parseFloat(avg("skor_pelestarian")),
+        lingkungan_total: parseFloat(avg("skor_lingkungan_total")),
       },
       distribusi_kluster: kecamatanData.reduce((acc, d) => {
         acc[d.label] = (acc[d.label] || 0) + 1;
         return acc;
       }, {} as Record<string, number>),
-      desa_dengan_digital_terburuk: desaTerburuk
+      desa_dengan_lingkungan_terburuk: desaTerburuk
         ? {
-            nama_desa: (desaTerburuk as DigitalData).NAMA_DESA,
-            nama_kecamatan: (desaTerburuk as DigitalData).NAMA_KEC,
-            nama_kabupaten: (desaTerburuk as DigitalData).NAMA_KAB,
-            jumlah_bts: (desaTerburuk as DigitalData).jumlah_bts,
-            jumlah_operator: (desaTerburuk as DigitalData).jumlah_operator,
-            sinyal_telepon: (desaTerburuk as DigitalData).sinyal_telepon,
-            sinyal_internet: (desaTerburuk as DigitalData).sinyal_internet,
-            warnet: (desaTerburuk as DigitalData).ada_warnet,
-            komputer_desa: (desaTerburuk as DigitalData).komputer_desa,
-            skor_readiness : (desaTerburuk as DigitalData).skor_digital_readiness,
-            skor_dig_pemerintahan : (desaTerburuk as DigitalData).skor_digitalisasi_pemdes,
-            internet_kantor: (desaTerburuk as DigitalData).internet_kantordesa,
-            sid: (desaTerburuk as DigitalData).sid,
-            label_kluster: (desaTerburuk as DigitalData).label,
+            nama_desa: (desaTerburuk as LingkunganData).NAMA_DESA,
+            nama_kecamatan: (desaTerburuk as LingkunganData).NAMA_KEC,
+            nama_kabupaten: (desaTerburuk as LingkunganData).NAMA_KAB,
+            skor_pengelolaan_sampah: (desaTerburuk as LingkunganData).skor_pengelolaan_sampah,
+            skor_kualitas_lingkungan: (desaTerburuk as LingkunganData).skor_kualitas_lingkungan,
+            skor_lingkungan_total: (desaTerburuk as LingkunganData).skor_lingkungan_total,
+            label_kluster: (desaTerburuk as LingkunganData).label,
           }
         : null,
-      desa_dengan_digital_terbaik: desaTerbaik
+      desa_dengan_lingkungan_terbaik: desaTerbaik
         ? {
-            nama_desa: (desaTerbaik as DigitalData).NAMA_DESA,
-            nama_kecamatan: (desaTerbaik as DigitalData).NAMA_KEC,
-            nama_kabupaten: (desaTerbaik as DigitalData).NAMA_KAB,
-            jumlah_bts: (desaTerbaik as DigitalData).jumlah_bts,
-            jumlah_operator: (desaTerbaik as DigitalData).jumlah_operator,
-            sinyal_telepon: (desaTerbaik as DigitalData).sinyal_telepon,
-            sinyal_internet: (desaTerbaik as DigitalData).sinyal_internet,
-            warnet: (desaTerbaik as DigitalData).ada_warnet,
-            komputer_desa: (desaTerbaik as DigitalData).komputer_desa,
-            skor_readiness : (desaTerbaik as DigitalData).skor_digital_readiness,
-            skor_dig_pemerintahan : (desaTerbaik as DigitalData).skor_digitalisasi_pemdes,
-            internet_kantor: (desaTerbaik as DigitalData).internet_kantordesa,
-            sid: (desaTerbaik as DigitalData).sid,
-            label_kluster: (desaTerbaik as DigitalData).label,
+            nama_desa: (desaTerbaik as LingkunganData).NAMA_DESA,
+            nama_kecamatan: (desaTerbaik as LingkunganData).NAMA_KEC,
+            nama_kabupaten: (desaTerbaik as LingkunganData).NAMA_KAB,
+            skor_pengelolaan_sampah: (desaTerbaik as LingkunganData).skor_pengelolaan_sampah,
+            skor_kualitas_lingkungan: (desaTerbaik as LingkunganData).skor_kualitas_lingkungan,
+            skor_lingkungan_total: (desaTerbaik as LingkunganData).skor_lingkungan_total,
+            label_kluster: (desaTerbaik as LingkunganData).label,
           }
         : null,
       globalInsights,
-      top5_terbaik: top5Digital.terbaik,
-      top5_terburuk: top5Digital.terburuk,
+      top5_terbaik: top5Lingkungan.terbaik,
+      top5_terburuk: top5Lingkungan.terburuk,
     };
   }, [kecamatanData, selectedKab, selectedKec, data, kabupatenTerbaik, kabupatenTerburuk]);
 
+  // === UPDATE PAGE CONTEXT UNTUK CHATBOT ===
   useEffect(() => {
     if (visibleDataSummary) {
       setPageContext({
-        pageId: "digital",
-        pageTitle: "Analisis Digital",
+        pageId: "lingkungan",
+        pageTitle: "Analisis Lingkungan",
         filters: {
           kabupaten: selectedKab || undefined,
           kecamatan: selectedKec || undefined,
@@ -336,24 +309,6 @@ export default function DigitalPage() {
       });
     }
   }, [visibleDataSummary, selectedKab, selectedKec, selectedDesa, setPageContext]);
-
-  useEffect(() => {
-    setPageContext({
-      pageId: "digital",
-      pageTitle: "Analisis Digital",
-      filters: {},
-      visibleDataSummary: { wilayah: "Provinsi Jawa Timur" },
-    });
-
-    return () => {
-      setPageContext({
-        pageId: "overview",
-        pageTitle: "Overview",
-        filters: {},
-        visibleDataSummary: null,
-      });
-    };
-  }, [setPageContext]);
 
   useEffect(() => {
     if (!selectedKab) {
@@ -380,10 +335,11 @@ export default function DigitalPage() {
     setSelectedDesa("")
   }, [selectedKec, selectedKab, data])
 
+  // Fetch data
   useEffect(() => {
     const fetchData = async () => {
       const { data, error } = await supabase
-        .from('cluster_digital')
+        .from('cluster_lingkungan')
         .select('*');
 
       if (error) {
@@ -398,6 +354,7 @@ export default function DigitalPage() {
     fetchData();
   }, []);
 
+  // === DATA DINAMIS ===
   const activeData = useMemo(() => {
     if (!data.length) return []
     let filtered = data
@@ -407,6 +364,7 @@ export default function DigitalPage() {
     return filtered
   }, [data, selectedKab, selectedKec, selectedDesa])
 
+  // === DATA UNTUK TABEL: semua desa dalam kecamatan terpilih (abaikan selectedDesa) ===
   const tableData = useMemo(() => {
     if (!data.length) return []
     let result = data
@@ -425,31 +383,22 @@ export default function DigitalPage() {
     return result
   }, [data, selectedKab, selectedKec, searchTerm])
 
-  const startIndex = (currentPage - 1) * 5
+  // === PAGINASI TABEL ===
+  const startIndex = (currentPage - 1) * 5 // ITEMS_PER_PAGE
   const endIndex = startIndex + 5
   const paginatedData = useMemo(() => tableData.slice(startIndex, endIndex), [tableData, startIndex, endIndex])
   const tableTotalPages = Math.ceil(tableData.length / 5)
 
+  // === MAP MARKERS ===
   const mapMarkers = useMemo(() => {
-    if (!data.length) return []
-
-    const isValidCoord = (lat: number, lng: number) => {
-      return (
-        lat !== 0 &&
-        lng !== 0 &&
-        !isNaN(lat) &&
-        !isNaN(lng) &&
-        lat >= -11 && lat <= -6 &&
-        lng >= 110 && lng <= 115
-      )
-    }
+    if (!data.length) return [];
 
     // ====== MODE: LEVEL KABUPATEN ======
     if (!selectedKab) {
       const kabupatenMap = new Map();
 
       data.forEach(item => {
-        if (isValidCoord(item.Latitude, item.Longitude) && !kabupatenMap.has(item.NAMA_KAB)) {
+        if (item.Latitude && item.Longitude && !kabupatenMap.has(item.NAMA_KAB)) {
           kabupatenMap.set(item.NAMA_KAB, {
             lat: item.Latitude,
             lng: item.Longitude,
@@ -458,8 +407,8 @@ export default function DigitalPage() {
             label: item.label,
 
             // Ambil satu sample data untuk ditampilkan di tooltip
-            skor_digitalisasi_pemdes: item.skor_digitalisasi_pemdes,
-            skor_digital_readiness: item.skor_digital_readiness,
+            skor_kualitas_lingkungan: item.skor_kualitas_lingkungan,
+            skor_ketahanan_bencana: item.skor_ketahanan_bencana,
           });
         }
       });
@@ -474,8 +423,8 @@ export default function DigitalPage() {
         label: m.label,
 
         // Data tambahan untuk tooltip
-        skor_digitalisasi_pemdes: m.skor_digitalisasi_pemdes,
-        skor_digital_readiness: m.skor_digital_readiness,
+        skor_kualitas_lingkungan: m.skor_kualitas_lingkungan,
+        skor_ketahanan_bencana: m.skor_ketahanan_bencana,
       }));
     }
 
@@ -486,7 +435,7 @@ export default function DigitalPage() {
       data
         .filter(d => d.NAMA_KAB === selectedKab)
         .forEach(item => {
-          if (isValidCoord(item.Latitude, item.Longitude)) {
+          if (item.Latitude && item.Longitude) {
             const key = `${item.NAMA_KAB}-${item.NAMA_KEC}`;
             if (!kecamatanMap.has(key)) {
               kecamatanMap.set(key, {
@@ -498,8 +447,8 @@ export default function DigitalPage() {
                 label: item.label,
 
                 // Ambil satu sample data per kecamatan
-                skor_digitalisasi_pemdes: item.skor_digitalisasi_pemdes,
-                skor_digital_readiness: item.skor_digital_readiness,
+                skor_kualitas_lingkungan: item.skor_kualitas_lingkungan,
+                skor_ketahanan_bencana: item.skor_ketahanan_bencana,
               });
             }
           }
@@ -515,8 +464,8 @@ export default function DigitalPage() {
         label: m.label,
 
         // Data tambahan untuk tooltip
-        skor_digitalisasi_pemdes: m.skor_digitalisasi_pemdes,
-        skor_digital_readiness: m.skor_digital_readiness,
+        skor_kualitas_lingkungan: m.skor_kualitas_lingkungan,
+        skor_ketahanan_bencana: m.skor_ketahanan_bencana,
       }));
     }
 
@@ -527,7 +476,8 @@ export default function DigitalPage() {
           d =>
             d.NAMA_KAB === selectedKab &&
             d.NAMA_KEC === selectedKec &&
-            isValidCoord(d.Latitude, d.Longitude)
+            d.Latitude &&
+            d.Longitude
         )
         .map(m => ({
           name: m.NAMA_DESA,
@@ -539,14 +489,14 @@ export default function DigitalPage() {
           label: m.label,
 
           // Data tambahan untuk tooltip
-          skor_digitalisasi_pemdes: m.skor_digitalisasi_pemdes,
-          skor_digital_readiness: m.skor_digital_readiness,
+          skor_kualitas_lingkungan: m.skor_kualitas_lingkungan,
+          skor_ketahanan_bencana: m.skor_ketahanan_bencana,
         }));
     }
 
     // Default: tampilkan semua desa jika tidak ada filter
     return data
-      .filter(m => isValidCoord(m.Latitude, m.Longitude))
+      .filter(m => m.Latitude && m.Longitude)
       .map(m => ({
         name: m.NAMA_DESA,
         position: [m.Latitude, m.Longitude] as [number, number],
@@ -557,107 +507,94 @@ export default function DigitalPage() {
         label: m.label,
 
         // Data tambahan untuk tooltip
-        skor_digitalisasi_pemdes: m.skor_digitalisasi_pemdes,
-        skor_digital_readiness: m.skor_digital_readiness,
+        skor_kualitas_lingkungan: m.skor_kualitas_lingkungan,
+        skor_ketahanan_bencana: m.skor_ketahanan_bencana,
       }));
   }, [data, selectedKab, selectedKec, selectedDesa]);
 
-  const btsOperatorByKabupaten = useMemo(() => {
-    if (!data.length) return []
-    const process = (items: DigitalData[]) => {
-      const grouped = items.reduce((acc, item) => {
-        const key = selectedKab && selectedKec ? item.NAMA_DESA : selectedKab ? item.NAMA_KEC : item.NAMA_KAB
-        if (!acc[key]) acc[key] = { name: key, totalBts: 0, totalOperator: 0, count: 0 }
-        acc[key].totalBts += item.jumlah_bts
-        acc[key].totalOperator += item.jumlah_operator
-        acc[key].count += 1
-        return acc
-      }, {} as Record<string, { name: string; totalBts: number; totalOperator: number; count: number }>)
+  // === CHART DATA: AGREGASI BERDASARKAN LEVEL FILTER ===
+  const chartData = useMemo(() => {
+    if (!data.length) return { skorLingkungan: [], kualitasLingkungan: [], label: "Data" }
 
-      if (selectedBtsOperator === "bts") {
-        return Object.values(grouped).map(item => ({
-          name: item.name,
-          value: Number((item.totalBts / item.count).toFixed(1)),
-        }))
-      } else if (selectedBtsOperator === "operator") {
-        return Object.values(grouped).map(item => ({
-          name: item.name,
-          value: Number((item.totalOperator / item.count).toFixed(1)),
-        }))
+    if (selectedKab && selectedKec) {
+      // Per desa di kecamatan
+      const desaData = data.filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec)
+      return {
+        skorLingkungan: desaData.map(d => ({ name: d.NAMA_DESA, skor: Number(d.skor_lingkungan_total.toFixed(1)) })),
+        kualitasLingkungan: desaData.map(d => ({ name: d.NAMA_DESA, skor: Number(d.skor_kualitas_lingkungan.toFixed(1)) })),
+        label: "Desa",
       }
-      return Object.values(grouped).map(item => ({
-        name: item.name,
-        bts: Number((item.totalBts / item.count).toFixed(1)),
-        operator: Number((item.totalOperator / item.count).toFixed(1)),
-      }))
-    }
-
-    if (selectedKab && selectedKec && selectedDesa) {
-      return process(data.filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec && d.NAMA_DESA === selectedDesa))
-    } else if (selectedKab && selectedKec) {
-      return process(data.filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec))
     } else if (selectedKab) {
-      return process(data.filter(d => d.NAMA_KAB === selectedKab))
-    } else {
-      return process(data)
-    }
-  }, [data, selectedKab, selectedKec, selectedDesa, selectedBtsOperator])
+      // Per kecamatan di kabupaten
+      const grouped = data
+        .filter(d => d.NAMA_KAB === selectedKab)
+        .reduce((acc, item) => {
+          const key = item.NAMA_KEC
+          if (!acc[key]) {
+            acc[key] = { name: key, totalLingkungan: 0, totalKualitas: 0, count: 0 }
+          }
+          acc[key].totalLingkungan += item.skor_lingkungan_total
+          acc[key].totalKualitas += item.skor_kualitas_lingkungan
+          acc[key].count += 1
+          return acc
+        }, {} as Record<string, { name: string; totalLingkungan: number; totalKualitas: number; count: number }>)
 
-  const signalByKabupaten = useMemo(() => {
-    if (!data.length) return []
-    const process = (items: DigitalData[]) => {
-      const grouped = items.reduce((acc, item) => {
-        const key = selectedKab && selectedKec ? item.NAMA_DESA : selectedKab ? item.NAMA_KEC : item.NAMA_KAB
-        if (!acc[key]) acc[key] = { name: key, totalTelepon: 0, totalInternet: 0, count: 0 }
-        acc[key].totalTelepon += item.sinyal_telepon
-        acc[key].totalInternet += item.sinyal_internet
-        acc[key].count += 1
-        return acc
-      }, {} as Record<string, { name: string; totalTelepon: number; totalInternet: number; count: number }>)
-
-      if (selectedSignal === "telepon") {
-        return Object.values(grouped).map(item => ({
-          name: item.name,
-          value: Number((item.totalTelepon / item.count).toFixed(1)),
-        }))
-      } else if (selectedSignal === "internet") {
-        return Object.values(grouped).map(item => ({
-          name: item.name,
-          value: Number((item.totalInternet / item.count).toFixed(1)),
-        }))
+      return {
+        skorLingkungan: Object.values(grouped).map(item => ({ name: item.name, skor: Number((item.totalLingkungan / item.count).toFixed(1)) })),
+        kualitasLingkungan: Object.values(grouped).map(item => ({ name: item.name, skor: Number((item.totalKualitas / item.count).toFixed(1)) })),
+        label: "Kecamatan",
       }
-      return Object.values(grouped).map(item => ({
-        name: item.name,
-        telepon: Number((item.totalTelepon / item.count).toFixed(1)),
-        internet: Number((item.totalInternet / item.count).toFixed(1)),
-      }))
-    }
-
-    if (selectedKab && selectedKec && selectedDesa) {
-      return process(data.filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec && d.NAMA_DESA === selectedDesa))
-    } else if (selectedKab && selectedKec) {
-      return process(data.filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec))
-    } else if (selectedKab) {
-      return process(data.filter(d => d.NAMA_KAB === selectedKab))
     } else {
-      return process(data)
-    }
-  }, [data, selectedKab, selectedKec, selectedDesa, selectedSignal])
+      // Per kabupaten
+      const grouped = data
+        .reduce((acc, item) => {
+          const key = item.NAMA_KAB
+          if (!acc[key]) {
+            acc[key] = { name: key, totalLingkungan: 0, totalKualitas: 0, count: 0 }
+          }
+          acc[key].totalLingkungan += item.skor_lingkungan_total
+          acc[key].totalKualitas += item.skor_kualitas_lingkungan
+          acc[key].count += 1
+          return acc
+        }, {} as Record<string, { name: string; totalLingkungan: number; totalKualitas: number; count: number }>)
 
-  const digitalInfraChartData = useMemo(() => {
+      return {
+        skorLingkungan: Object.values(grouped).map(item => ({ name: item.name, skor: Number((item.totalLingkungan / item.count).toFixed(1)) })),
+        kualitasLingkungan: Object.values(grouped).map(item => ({ name: item.name, skor: Number((item.totalKualitas / item.count).toFixed(1)) })),
+        label: "Kabupaten",
+      }
+    }
+  }, [data, selectedKab, selectedKec])
+
+  // === Komponen Lingkungan Lainnya ===
+  const komponenLingkunganNasional = useMemo(() => {
     if (!activeData.length) return []
-    const avg = (key: keyof DigitalData) => {
+    const avg = (key: keyof LingkunganData) => {
       const sum = activeData.reduce((acc, item) => acc + (item[key] as number), 0)
       return Number((sum / activeData.length).toFixed(1))
     }
     return [
-      { name: "Warnet", avg: avg("ada_warnet") },
-      { name: "Komputer Desa", avg: avg("komputer_desa") },
-      { name: "Internet Kantor Desa", avg: avg("internet_kantordesa") },
+      { name: "Pengelolaan Sampah", avg: avg("skor_pengelolaan_sampah") },
+      { name: "Ketahanan Bencana", avg: avg("skor_ketahanan_bencana") },
+      { name: "Mitigasi Bencana", avg: avg("skor_mitigasi_bencana") },
+      { name: "Pelestarian", avg: avg("skor_pelestarian") },
     ]
   }, [activeData])
 
-  const clusterDistribution = useMemo(() => {
+  const distribusiKategori = useMemo(() => {
+    if (!activeData.length) return []
+    return activeData.reduce(
+      (acc, item) => {
+        const existing = acc.find(x => x.name === item.kategori_lingkungan)
+        if (existing) existing.value += 1
+        else acc.push({ name: item.kategori_lingkungan, value: 1 })
+        return acc
+      },
+      [] as Array<{ name: string; value: number }>
+    )
+  }, [activeData])
+
+  const distribusiCluster = useMemo(() => {
     if (!activeData.length) return []
     return activeData.reduce(
       (acc, item) => {
@@ -670,20 +607,21 @@ export default function DigitalPage() {
     )
   }, [activeData])
 
+  // === Statistik ===
   const stats = useMemo(() => {
     if (!activeData.length) {
       return {
         totalDesa: 0,
-        avgBts: "0.0",
-        avgOperator: "0.0",
-        avgSinyalInternet: "0.0",
+        avgLingkungan: "0.0",
+        avgKualitas: "0.0",
+        avgSampah: "0.0",
       }
     }
     return {
       totalDesa: activeData.length,
-      avgBts: (activeData.reduce((sum, d) => sum + d.jumlah_bts, 0) / activeData.length).toFixed(1),
-      avgOperator: (activeData.reduce((sum, d) => sum + d.jumlah_operator, 0) / activeData.length).toFixed(1),
-      avgSinyalInternet: (activeData.reduce((sum, d) => sum + d.sinyal_internet, 0) / activeData.length).toFixed(1),
+      avgLingkungan: (activeData.reduce((sum, d) => sum + d.skor_lingkungan_total, 0) / activeData.length).toFixed(1),
+      avgKualitas: (activeData.reduce((sum, d) => sum + d.skor_kualitas_lingkungan, 0) / activeData.length).toFixed(1),
+      avgSampah: (activeData.reduce((sum, d) => sum + d.skor_pengelolaan_sampah, 0) / activeData.length).toFixed(1),
     }
   }, [activeData])
 
@@ -691,28 +629,22 @@ export default function DigitalPage() {
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
         <div className="text-center">
-          <div 
-            className="animate-spin rounded-full h-12 w-12 mx-auto mb-4"
-            style={{
-              border: "3px solid rgba(34, 211, 238, 0.2)",
-              borderTopColor: "#22d3ee",
-            }}
-          ></div>
-          <p style={{ color: "#a8dcc8" }}>Memuat data dari server...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#324D3E] mx-auto mb-4"></div>
+          <p className="text-gray-600">Memuat data dari server...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen">
-      {/* STICKY HEADER */}
-      <div 
+    <div className="min-h-screen from-gray-50 to-gray-100">
+      {/* STICKY HEADER - Mobile Optimized */}
+     <div 
         className="sticky top-0 z-[999] shadow-sm"
         style={{
-          background: "rgba(10, 31, 26, 0.9)",
+          background: "rgba(10, 31, 26, 0.9)", // Warna latar dari digital.txt
           backdropFilter: "blur(20px)",
-          borderBottom: "1px solid rgba(34, 211, 238, 0.2)",
+          borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
         }}
       >
         <div className="px-3 sm:px-5 py-3 sm:py-4">
@@ -721,33 +653,20 @@ export default function DigitalPage() {
               <h1 
                 className="text-lg sm:text-2xl md:text-3xl font-bold truncate"
                 style={{ 
-                  background: "linear-gradient(135deg, #22d3ee, #10b981)",
+                  background: "linear-gradient(135deg, #22d3ee, #10b981)", // Gradien judul dari digital.txt
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                 }}
               >
-                Dashboard Digital Desa
+                Dashboard Lingkungan Desa
               </h1>
               <p className="text-xs sm:text-sm mt-1" style={{ color: "#a8dcc8" }}>
-                Data kluster transformasi digital masyarakat per desa
+                Data kluster lingkungan dan keberlanjutan per desa
               </p>
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="ml-3 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shrink-0 transition-all"
-              style={{
-                background: "rgba(34, 211, 238, 0.15)",
-                border: "1px solid rgba(34, 211, 238, 0.3)",
-                color: "#22d3ee",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(34, 211, 238, 0.25)"
-                e.currentTarget.style.boxShadow = "0 0 20px rgba(34, 211, 238, 0.3)"
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(34, 211, 238, 0.15)"
-                e.currentTarget.style.boxShadow = "none"
-              }}
+              className="ml-3 px-3 py-2 bg-[#324D3E] text-white rounded-lg text-sm font-medium hover:bg-[#5A7A60] transition-colors flex items-center gap-2 shrink-0"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -755,67 +674,68 @@ export default function DigitalPage() {
               <span className="hidden sm:inline">Filter</span>
             </button>
           </div>
+          {/* Filter Panel - Collapsible on Mobile */}
           {showFilters && (
             <div 
               className="space-y-2 sm:space-y-3 pt-3 animate-in slide-in-from-top duration-200"
               style={{
-                borderTop: "1px solid rgba(34, 211, 238, 0.2)",
+                borderTop: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
               }}
             >
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                 <div>
-                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#d4f4e8" }}>Kabupaten</label>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#d4f4e8" }}>Kabupaten</label> {/* Warna teks dari digital.txt */}
                   <select
                     value={selectedKab}
                     onChange={(e) => setSelectedKab(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2"
                     style={{
-                      background: "rgba(16, 185, 129, 0.1)",
-                      border: "1px solid rgba(34, 211, 238, 0.3)",
-                      color: "#d4f4e8",
+                      background: "rgba(16, 185, 129, 0.1)", // Warna input dari digital.txt
+                      border: "1px solid rgba(34, 211, 238, 0.3)", // Warna border dari digital.txt
+                      color: "#d4f4e8", // Warna teks dari digital.txt
                     }}
                   >
-                    <option value="" style={{ background: "#1a3a32" }}>Semua Kabupaten</option>
+                    <option value="" style={{ background: "#1a3a32" }}>Semua Kabupaten</option> {/* Warna background dari digital.txt */}
                     {[...new Set(data.map(d => d.NAMA_KAB))].sort().map(kab => (
-                      <option key={kab} value={kab} style={{ background: "#1a3a32" }}>{kab}</option>
+                      <option key={kab} value={kab} style={{ background: "#1a3a32" }}>{kab}</option> // Warna background dari digital.txt
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#d4f4e8" }}>Kecamatan</label>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#d4f4e8" }}>Kecamatan</label> {/* Warna teks dari digital.txt */}
                   <select
                     value={selectedKec}
                     onChange={(e) => setSelectedKec(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
-                      background: "rgba(16, 185, 129, 0.1)",
-                      border: "1px solid rgba(34, 211, 238, 0.3)",
-                      color: "#d4f4e8",
+                      background: "rgba(16, 185, 129, 0.1)", // Warna input dari digital.txt
+                      border: "1px solid rgba(34, 211, 238, 0.3)", // Warna border dari digital.txt
+                      color: "#d4f4e8", // Warna teks dari digital.txt
                     }}
                     disabled={!selectedKab}
                   >
-                    <option value="" style={{ background: "#1a3a32" }}>Semua Kecamatan</option>
+                    <option value="" style={{ background: "#1a3a32" }}>Semua Kecamatan</option> {/* Warna background dari digital.txt */}
                     {kecamatanOptions.map(kec => (
-                      <option key={kec} value={kec} style={{ background: "#1a3a32" }}>{kec}</option>
+                      <option key={kec} value={kec} style={{ background: "#1a3a32" }}>{kec}</option> // Warna background dari digital.txt
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#d4f4e8" }}>Desa</label>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#d4f4e8" }}>Desa</label> {/* Warna teks dari digital.txt */}
                   <select
                     value={selectedDesa}
                     onChange={(e) => setSelectedDesa(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
-                      background: "rgba(16, 185, 129, 0.1)",
-                      border: "1px solid rgba(34, 211, 238, 0.3)",
-                      color: "#d4f4e8",
+                      background: "rgba(16, 185, 129, 0.1)", // Warna input dari digital.txt
+                      border: "1px solid rgba(34, 211, 238, 0.3)", // Warna border dari digital.txt
+                      color: "#d4f4e8", // Warna teks dari digital.txt
                     }}
                     disabled={!selectedKec}
                   >
-                    <option value="" style={{ background: "#1a3a32" }}>Semua Desa</option>
+                    <option value="" style={{ background: "#1a3a32" }}>Semua Desa</option> {/* Warna background dari digital.txt */}
                     {desaOptions.map(desa => (
-                      <option key={desa} value={desa} style={{ background: "#1a3a32" }}>{desa}</option>
+                      <option key={desa} value={desa} style={{ background: "#1a3a32" }}>{desa}</option> // Warna background dari digital.txt
                     ))}
                   </select>
                 </div>
@@ -828,7 +748,7 @@ export default function DigitalPage() {
                     setSelectedDesa("")
                   }}
                   className="text-xs font-medium flex items-center gap-1 transition-all"
-                  style={{ color: "#ef4444" }}
+                  style={{ color: "#ef4444" }} // Warna tombol reset dari digital.txt
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -842,13 +762,13 @@ export default function DigitalPage() {
       </div>
 
       <div className="px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {/* Stats Cards */}
+        {/* Stats Cards - Responsive Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[
             { label: "Total Desa", value: stats.totalDesa, color: "from-emerald-700 to-emerald-200" },
-            { label: "Rata-rata Jumlah BTS", value: stats.avgBts, color: "from-green-700 to-green-300"  },
-            { label: "Rata-rata Jumlah Operator", value: stats.avgOperator, color: "from-teal-700 to-teal-300" },
-            { label: "Rata-rata Sinyal Internet", value: stats.avgSinyalInternet + "%", color: "from-cyan-700 to-cyan-300" },
+            { label: "Rata-rata Skor Lingkungan", value: stats.avgLingkungan, color: "from-green-700 to-green-300" },
+            { label: "Rata-rata Kualitas Lingkungan", value: stats.avgKualitas, color: "from-teal-700 to-teal-300" },
+            { label: "Rata-rata Pengelolaan Sampah", value: stats.avgSampah,color: "from-cyan-700 to-cyan-300" },
           ].map((stat, idx) => (
             <div key={idx} className={`bg-gradient-to-br ${stat.color} rounded-xl p-4 shadow-lg text-white`}>
               <p className="text-xs sm:text-sm font-medium opacity-90 mb-1">{stat.label}</p>
@@ -861,16 +781,16 @@ export default function DigitalPage() {
         <div 
           className="rounded-xl shadow-md overflow-hidden"
           style={{
-            background: "rgba(10, 31, 26, 0.7)",
-            border: "1px solid rgba(34, 211, 238, 0.2)",
-            boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)",
+            background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+            border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+            boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
           }}
         >
           <div 
             className="px-4 py-3"
             style={{
-              borderBottom: "1px solid rgba(34, 211, 238, 0.2)",
-              background: "rgba(16, 185, 129, 0.08)",
+              borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+              background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
             }}
           >
             <h2 className="text-base sm:text-lg font-semibold" style={{ color: "#d4f4e8" }}>
@@ -923,18 +843,18 @@ export default function DigitalPage() {
                   )}
 
                   {/* Skor Tambahan */}
-                  {(marker.skor_digitalisasi_pemdes !== undefined || marker.skor_digital_readiness !== undefined) && (
+                  {(marker.skor_kualitas_lingkungan !== undefined || marker.skor_ketahanan_bencana !== undefined) && (
                     <div className="mt-2 pt-2 border-t border-gray-700 space-y-1">
-                      {marker.skor_digitalisasi_pemdes !== undefined && (
+                      {marker.skor_kualitas_lingkungan !== undefined && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Digitalisasi Pemdes:</span>
-                          <span className="font-medium text-[#22d3ee]">{Number(marker.skor_digitalisasi_pemdes).toFixed(1)}</span>
+                          <span className="text-gray-400">Kualitas Lingkungan:</span>
+                          <span className="font-medium text-[#22d3ee]">{Number(marker.skor_kualitas_lingkungan).toFixed(1)}</span>
                         </div>
                       )}
-                      {marker.skor_digital_readiness !== undefined && (
+                      {marker.skor_ketahanan_bencana !== undefined && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Digital Readiness:</span>
-                          <span className="font-medium text-[#22d3ee]">{Number(marker.skor_digital_readiness).toFixed(1)}</span>
+                          <span className="text-gray-400">Ketahanan Bencana:</span>
+                          <span className="font-medium text-[#22d3ee]">{Number(marker.skor_ketahanan_bencana).toFixed(1)}</span>
                         </div>
                       )}
                     </div>
@@ -945,44 +865,182 @@ export default function DigitalPage() {
           </div>
         </div>
 
-        {/* Charts Section */}
+        {/* Charts Section - Mobile Optimized */}
         <div className="space-y-4 sm:space-y-6">
           {/* Row 1 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            {/* Chart 1: Distribusi Cluster */}
+            {/* Chart 1: Skor Lingkungan */}
             <div 
               className="rounded-xl shadow-md overflow-hidden"
               style={{
-                background: "rgba(10, 31, 26, 0.7)",
-                border: "1px solid rgba(34, 211, 238, 0.2)",
-                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)",
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
               }}
             >
               <div 
                 className="px-4 py-3"
                 style={{
-                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)",
-                  background: "rgba(16, 185, 129, 0.08)",
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
                 }}
               >
                 <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
-                  Distribusi Kluster Digital
+                  Skor Lingkungan per {chartData.label}
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
+                  <BarChart data={chartData.skorLingkungan} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
+                    <XAxis 
+                      dataKey="name" 
+                      stroke="#ffff" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80} 
+                      fontSize={10}
+                      interval={0}
+                    />
+                    <YAxis stroke="#ffff" fontSize={10} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                    />
+                    <Bar dataKey="skor" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Chart 2: Kualitas Lingkungan */}
+            <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+              <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+                }}
+              >
+                <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
+                  Kualitas Lingkungan per {chartData.label}
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={chartData.kualitasLingkungan} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
+                    <XAxis 
+                      dataKey="name" 
+                      stroke="#ffff" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80} 
+                      fontSize={10}
+                      interval={0}
+                    />
+                    <YAxis stroke="#ffff" fontSize={10} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                    />
+                    <Bar dataKey="skor" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            {/* Chart 3: Komponen Lingkungan */}
+            <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+              <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+                }}
+              >
+                <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
+                  Rata-rata Komponen Lingkungan
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={komponenLingkunganNasional} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
+                    <XAxis dataKey="name" stroke="#ffff" fontSize={12} />
+                    <YAxis stroke="#ffff" fontSize={12} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                    />
+                    <Bar dataKey="avg" fill="#7dd3fc" name="Skor Rata-rata" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Chart 4: Distribusi Kategori */}
+            <div 
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
+              }}
+            >
+              <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
+                }}
+              >
+                <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
+                  Distribusi Kategori Lingkungan
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart margin={{bottom:10}}>
                     <Pie
-                      data={clusterDistribution}
+                      data={distribusiKategori}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
                       label={renderCustomLabel}
-                      outerRadius={80}
-                      fill="#8884d8"
+                      outerRadius={90}
                       dataKey="value"
                     >
-                      {clusterDistribution.map((entry, index) => (
+                      {distribusiKategori.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -1005,186 +1063,62 @@ export default function DigitalPage() {
                 </ResponsiveContainer>
               </div>
             </div>
-
-            {/* Chart 2: BTS/Operator */}
-            <div 
-              className="rounded-xl shadow-md overflow-hidden"
-              style={{
-                background: "rgba(10, 31, 26, 0.7)",
-                border: "1px solid rgba(34, 211, 238, 0.2)",
-                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)",
-              }}
-            >
-              <div 
-                className="px-4 py-3"
-                style={{
-                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)",
-                  background: "rgba(16, 185, 129, 0.08)",
-                }}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
-                    Rata-rata {selectedBtsOperator === "bts" ? "Jumlah BTS" : "Jumlah Operator"} per {selectedKab && selectedKec ? "Desa" : selectedKab ? "Kecamatan" : "Kabupaten"}
-                  </h2>
-                  <select
-                    value={selectedBtsOperator}
-                    onChange={(e) => setSelectedBtsOperator(e.target.value)}
-                    className="px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 w-full sm:w-auto"
-                    style={{
-                      background: "rgba(16, 185, 129, 0.15)",
-                      border: "1px solid rgba(34, 211, 238, 0.3)",
-                      color: "#d4f4e8",
-                    }}
-                  >
-                    <option value="bts" style={{ background: "#1a3a32" }}>Jumlah BTS</option>
-                    <option value="operator" style={{ background: "#1a3a32" }}>Jumlah Operator</option>
-                  </select>
-                </div>
-              </div>
-              <div className="p-3 sm:p-4">
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={btsOperatorByKabupaten} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
-                    <XAxis 
-                      dataKey="name" 
-                      stroke="#a8dcc8" 
-                      angle={-45} 
-                      textAnchor="end" 
-                      height={80} 
-                      fontSize={10}
-                      interval={0}
-                    />
-                    <YAxis stroke="#a8dcc8" fontSize={12} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        background: 'rgba(10, 31, 26, 0.95)', 
-                        border: '1px solid rgba(34, 211, 238, 0.3)',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                        color: '#d4f4e8',
-                      }} 
-                    />
-                    <Bar
-                      dataKey="value"
-                      fill={selectedBtsOperator === "bts" ? "#10b981" : "#22d3ee"}
-                      name={selectedBtsOperator === "bts" ? "Jumlah BTS" : "Jumlah Operator"}
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
           </div>
 
-          {/* Row 2 */}
+          {/* Row 3 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            {/* Chart 3: Kualitas Sinyal */}
+            {/* Chart 5: Distribusi Kluster */}
             <div 
               className="rounded-xl shadow-md overflow-hidden"
               style={{
-                background: "rgba(10, 31, 26, 0.7)",
-                border: "1px solid rgba(34, 211, 238, 0.2)",
-                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)",
+                background: "rgba(10, 31, 26, 0.7)", // Warna latar dari digital.txt
+                border: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)", // Bayangan dari digital.txt
               }}
             >
               <div 
                 className="px-4 py-3"
                 style={{
-                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)",
-                  background: "rgba(16, 185, 129, 0.08)",
-                }}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
-                    Kualitas Sinyal {selectedSignal === "telepon" ? "Telepon" : "Internet"} per {selectedKab && selectedKec ? "Desa" : selectedKab ? "Kecamatan" : "Kabupaten"}
-                  </h2>
-                  <select
-                    value={selectedSignal}
-                    onChange={(e) => setSelectedSignal(e.target.value)}
-                    className="px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 w-full sm:w-auto"
-                    style={{
-                      background: "rgba(16, 185, 129, 0.15)",
-                      border: "1px solid rgba(34, 211, 238, 0.3)",
-                      color: "#d4f4e8",
-                    }}
-                  >
-                    <option value="telepon" style={{ background: "#1a3a32" }}>Sinyal Telepon</option>
-                    <option value="internet" style={{ background: "#1a3a32" }}>Sinyal Internet</option>
-                  </select>
-                </div>
-              </div>
-              <div className="p-3 sm:p-4">
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={signalByKabupaten} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
-                    <XAxis 
-                      dataKey="name" 
-                      stroke="#a8dcc8" 
-                      angle={-45} 
-                      textAnchor="end" 
-                      height={80} 
-                      fontSize={10}
-                      interval={0}
-                    />
-                    <YAxis stroke="#a8dcc8" fontSize={12} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        background: 'rgba(10, 31, 26, 0.95)', 
-                        border: '1px solid rgba(34, 211, 238, 0.3)',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                        color: '#d4f4e8',
-                      }} 
-                    />
-                    <Bar
-                      dataKey="value"
-                      fill={selectedSignal === "telepon" ? "#14b8a6" : "#22d3ee"}
-                      name={selectedSignal === "telepon" ? "Sinyal Telepon (%)" : "Sinyal Internet (%)"}
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Chart 4: Infrastruktur Digital */}
-            <div 
-              className="rounded-xl shadow-md overflow-hidden"
-              style={{
-                background: "rgba(10, 31, 26, 0.7)",
-                border: "1px solid rgba(34, 211, 238, 0.2)",
-                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)",
-              }}
-            >
-              <div 
-                className="px-4 py-3"
-                style={{
-                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)",
-                  background: "rgba(16, 185, 129, 0.08)",
+                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)", // Warna border dari digital.txt
+                  background: "rgba(16, 185, 129, 0.08)", // Warna latar header dari digital.txt
                 }}
               >
                 <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
-                  Rata-rata Infrastruktur Digital
+                  Distribusi Kluster Lingkungan
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={digitalInfraChartData} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
-                    <XAxis dataKey="name" stroke="#a8dcc8" fontSize={12} />
-                    <YAxis stroke="#a8dcc8" fontSize={12} />
+                  <PieChart margin={{bottom:10}}>
+                    <Pie
+                      data={distribusiCluster}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={renderCustomLabel}
+                      outerRadius={90}
+                      dataKey="value"
+                    >
+                      {distribusiCluster.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
                     <Tooltip 
                       contentStyle={{ 
                         background: 'rgba(10, 31, 26, 0.95)', 
-                        border: '1px solid rgba(34, 211, 238, 0.3)',
+                        border: '1px solid #e5e7eb',
                         borderRadius: '8px',
-                        fontSize: '12px',
-                        color: '#d4f4e8',
+                        fontSize: '12px'
                       }} 
+                      labelStyle={{
+                          color: "#d4f4e8",      // warna label tooltip
+                          fontWeight: "bold",
+                      }}
+                      itemStyle={{
+                        color: "#d4f4e8",      // warna nilai tooltip
+                      }}
                     />
-                    <Legend wrapperStyle={{ fontSize: '12px', color: '#a8dcc8' }} />
-                    <Bar dataKey="avg" fill="#22d3ee" name="Rata-rata" radius={[4, 4, 0, 0]} />
-                  </BarChart>
+                  </PieChart>
                 </ResponsiveContainer>
               </div>
             </div>

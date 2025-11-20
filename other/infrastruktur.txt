@@ -312,7 +312,7 @@ export default function Infrastruktur() {
     });
     return [best, worst];
   }, [kabupatenAggregates]);
-
+  
   const top5Infra = useMemo(() => {
     if (!villageData.length) return { terbaik: [], terburuk: [] };
     const byKab = villageData.reduce((acc, d) => {
@@ -338,196 +338,153 @@ export default function Infrastruktur() {
     };
   }, [villageData]);
 
-  // --- Ranking Kabupaten berdasarkan Rata-rata Skor TRANSPORTASI ---
-  const top5Transportasi = useMemo(() => {
-    if (!villageData.length) return { terbaik: [], terburuk: [] };
-
-    // Agregasi data per kabupaten berdasarkan skor_transportasi
-    const byKab = villageData.reduce((acc, d) => {
-      const key = d.NAMA_KAB;
-      if (!acc[key]) {
-        acc[key] = { nama: key, total: 0, count: 0 };
-      }
-      acc[key].total += d.skor_transportasi; // <-- Fokus ke skor_transportasi
-      acc[key].count += 1;
-      return acc;
-    }, {} as Record<string, { nama: string; total: number; count: number }>);
-
-    // Buat list dan urutkan
-    const listKab = Object.values(byKab).map(k => ({
-      nama: k.nama,
-      skor: Number((k.total / k.count).toFixed(1)),
-    }));
-
-    const sortedKab = [...listKab].sort((a, b) => b.skor - a.skor);
-    const top5Terbaik = sortedKab.slice(0, 5);
-    const top5Terburuk = sortedKab.slice(-5).reverse();
-
-    return { terbaik: top5Terbaik, terburuk: top5Terburuk };
-  }, [villageData]);
-
   //visibleDataSummary
   const visibleDataSummary = useMemo(() => {
-    if (!activeData.length) return null;
-    if (!villageData.length) return null; // Pastikan villageData tersedia
+  if (!activeData.length) return null;
 
-    const totalDesa = activeData.length;
+  const totalDesa = activeData.length;
 
-    // --- Fungsi Pembantu ---
-    const avg = (key: keyof VillageData) => {
-      const valid = activeData.filter(d => d[key] != null && !isNaN(d[key] as number));
-      if (valid.length === 0) return 0;
-      const sum = valid.reduce((acc, d) => acc + (d[key] as number), 0);
-      return Number((sum / valid.length).toFixed(1));
-    };
+  // --- Fungsi Pembantu ---
+  const avg = (key: keyof VillageData) => {
+    const valid = activeData.filter(d => d[key] != null && !isNaN(d[key] as number));
+    if (valid.length === 0) return 0;
+    const sum = valid.reduce((acc, d) => acc + (d[key] as number), 0);
+    return Number((sum / valid.length).toFixed(1));
+  };
 
-    const countIf = (condition: (item: VillageData) => boolean) => {
-      return activeData.filter(condition).length;
-    };
+  const countIf = (condition: (item: VillageData) => boolean) => {
+     return activeData.filter(condition).length;
+  };
 
-    // --- Wilayah ---
-    let wilayah = "Provinsi Jawa Timur";
-    if (selectedKab && !selectedKec) wilayah = `Kabupaten ${selectedKab}`;
-    else if (selectedKab && selectedKec) wilayah = `Kecamatan ${selectedKec}, Kabupaten ${selectedKab}`;
+  // --- Wilayah ---
+  let wilayah = "Provinsi Jawa Timur";
+  if (selectedKab && !selectedKec) wilayah = `Kabupaten ${selectedKab}`;
+  else if (selectedKab && selectedKec) wilayah = `Kecamatan ${selectedKec}, Kabupaten ${selectedKab}`;
 
-    // --- Rata-rata Skor Infrastruktur ---
-    const rata_rata_skor = {
-      listrik: avg("skor_listrik"),
-      sanitasi: avg("skor_sanitasi"),
-      air: avg("skor_air"),
-      transportasi: avg("skor_transportasi"),
-      digital: avg("skor_digital"),
-      aksesibilitas: avg("skor_aksesibilitas"),
-    };
+  // --- Rata-rata Skor Infrastruktur ---
+  const rata_rata_skor = {
+    listrik: avg("skor_listrik"),
+    sanitasi: avg("skor_sanitasi"),
+    air: avg("skor_air"),
+    transportasi: avg("skor_transportasi"),
+    digital: avg("skor_digital"),
+    aksesibilitas: avg("skor_aksesibilitas"),
+  };
 
-    // --- Persentase Akses ---
-    const persentase_akses = {
-      air_minum_aman: avg("air_minum_aman"),
-      air_cuci_bersih: avg("air_cuci_bersih"),
-      sanitasi_layak: avg("sanitasi_layak"),
-      penerangan_jalan: avg("penerangan_jalan"),
-    };
+  // --- Persentase Akses (menggunakan countIf karena kolomnya boolean/0-100) ---
+  const persentase_akses = {
+    air_minum_aman: avg("air_minum_aman"), // Gunakan avg karena nilainya 0-100
+    air_cuci_bersih: avg("air_cuci_bersih"),
+    sanitasi_layak: avg("sanitasi_layak"),
+    penerangan_jalan: avg("penerangan_jalan"), // Gunakan avg karena nilainya 0-100
+  };
 
-    // --- Distribusi Kluster Infrastruktur ---
-    const distribusi_kluster_infrastruktur = activeData.reduce((acc, d) => {
-      acc[d.label_infrastruktur] = (acc[d.label_infrastruktur] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+  // --- Distribusi Kluster Infrastruktur ---
+  const distribusi_kluster = activeData.reduce((acc, d) => {
+    acc[d.label_infrastruktur] = (acc[d.label_infrastruktur] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
-    // --- Infrastruktur Pendukung ---
-    const infrastruktur_pendukung = {
-      penerangan_jalan: countIf(d => d.penerangan_jalan > 0),
-      penerangan_surya: countIf(d => d.penerangan_surya > 0),
-      tps: countIf(d => d.tps > 0),
-      tps3r: countIf(d => d.tps3r > 0),
-      bank_sampah: countIf(d => d.bank_sampah > 0),
-      drainase: countIf(d => d.drainase > 0),
-      jalan_aspal: countIf(d => d.jalan_aspal > 0),
-      jalan_keras: countIf(d => d.jalan_keras > 0),
-      akses_puskesmas: countIf(d => d.akses_puskesmas > 0),
-      akses_pasar: countIf(d => d.akses_pasar > 0),
-      akses_sd: countIf(d => d.akses_sd > 0),
-      sinyal_telepon: countIf(d => d.sinyal_telepon > 0),
-      sinyal_internet: countIf(d => d.sinyal_internet > 0),
-      jumlah_bts: avg("jumlah_bts"),
-      jumlah_operator: avg("jumlah_operator"),
-      komputer_desa: countIf(d => d.komputer_desa > 0),
-      internet_desa: countIf(d => d.internet_desa > 0),
-      warnet: countIf(d => d.warnet > 0),
-    };
+  // --- Infrastruktur Pendukung (Menghitung jumlah desa yang memiliki fasilitas) ---
+  const infrastruktur_pendukung = {
+    penerangan_jalan: countIf(d => d.penerangan_jalan > 0),
+    penerangan_surya: countIf(d => d.penerangan_surya > 0),
+    tps: countIf(d => d.tps > 0),
+    tps3r: countIf(d => d.tps3r > 0),
+    bank_sampah: countIf(d => d.bank_sampah > 0),
+    drainase: countIf(d => d.drainase > 0),
+    jalan_aspal: countIf(d => d.jalan_aspal > 0),
+    jalan_keras: countIf(d => d.jalan_keras > 0),
+    akses_puskesmas: countIf(d => d.akses_puskesmas > 0),
+    akses_pasar: countIf(d => d.akses_pasar > 0),
+    akses_sd: countIf(d => d.akses_sd > 0),
+    sinyal_telepon: countIf(d => d.sinyal_telepon > 0),
+    sinyal_internet: countIf(d => d.sinyal_internet > 0),
+    jumlah_bts: avg("jumlah_bts"), // Rata-rata jumlah BTS
+    jumlah_operator: avg("jumlah_operator"), // Rata-rata jumlah operator
+    komputer_desa: countIf(d => d.komputer_desa > 0),
+    internet_desa: countIf(d => d.internet_desa > 0),
+    warnet: countIf(d => d.warnet > 0),
+  };
 
-    // --- Desa Terbaik & Terburuk ---
-    const getSkorTotal = (d: VillageData) => {
-      return (d.skor_listrik + d.skor_sanitasi + d.skor_air + d.skor_transportasi + d.skor_digital + d.skor_aksesibilitas) / 6;
-    };
+  // --- Desa Terbaik & Terburuk berdasarkan Skor Infrastruktur Total ---
+  // Di sini kita ambil rata-rata dari ke-6 skor sebagai proxy untuk "skor total infrastruktur"
+  const getSkorTotal = (d: VillageData) => {
+    return (d.skor_listrik + d.skor_sanitasi + d.skor_air + d.skor_transportasi + d.skor_digital + d.skor_aksesibilitas) / 6;
+  };
 
-    let desaTerburuk: VillageData | null = null;
-    let desaTerbaik: VillageData | null = null;
-    let skorMin = Infinity;
-    let skorMax = -Infinity;
+  let desaTerburuk: VillageData | null = null;
+  let desaTerbaik: VillageData | null = null;
+  let skorMin = Infinity;
+  let skorMax = -Infinity;
 
-    activeData.forEach(des => {
-      const skor = getSkorTotal(des);
-      if (skor < skorMin) {
-        skorMin = skor;
-        desaTerburuk = des;
-      }
-      if (skor > skorMax) {
-        skorMax = skor;
-        desaTerbaik = des;
-      }
-    });
-
-    // --- MODIFIKASI UTAMA DI SINI ---
-    // 1. Buat Top 5 Kabupaten (Gunakan logika yang sudah ada di top5Infra)
-    const byKab = villageData.reduce((acc, d) => {
-      const key = d.NAMA_KAB;
-      if (!acc[key]) {
-        acc[key] = { nama: key, total: 0, count: 0 };
-      }
-      acc[key].total += getSkorTotal(d);
-      acc[key].count += 1;
-      return acc;
-    }, {} as Record<string, { nama: string; total: number; count: number }>);
-
-    const listKab = Object.values(byKab).map(k => ({
-      nama: k.nama,
-      skor: Number((k.total / k.count).toFixed(1)),
-    }));
-
-    const sortedKab = [...listKab].sort((a, b) => b.skor - a.skor);
-    const top5Terbaik = sortedKab.slice(0, 5);
-    const top5Terburuk = sortedKab.slice(-5).reverse();
-
-    // 2. Buat globalInsights untuk level Provinsi
-    let globalInsights = null;
-    if (!selectedKab && !selectedKec) {
-      const kabupatenTerbaik = top5Terbaik[0] ? { nama_kab: top5Terbaik[0].nama, skor_rata_rata: top5Terbaik[0].skor } : null;
-      const kabupatenTerburuk = top5Terburuk[0] ? { nama_kab: top5Terburuk[0].nama, skor_rata_rata: top5Terburuk[0].skor } : null;
-      globalInsights = { kabupatenTerbaik, kabupatenTerburuk };
-    } else if (selectedKab && !selectedKec) {
-      // Logika existing untuk level kabupaten (kecamatanTerbaik/terburuk) tetap di sini
-      // ... (kode existing Anda untuk kecamatan tetap di sini)
+  activeData.forEach(des => {
+    const skor = getSkorTotal(des);
+    if (skor < skorMin) {
+      skorMin = skor;
+      desaTerburuk = des;
     }
+    if (skor > skorMax) {
+      skorMax = skor;
+      desaTerbaik = des;
+    }
+  });
 
-    return {
-      wilayah,
-      jumlah_desa: totalDesa,
-      rata_rata_skor,
-      persentase_akses,
-      distribusi_kluster_infrastruktur,
-      infrastruktur_pendukung,
-      desa_dengan_infrastruktur_terburuk: desaTerburuk ? {
-        nama_desa: (desaTerburuk as VillageData).NAMA_DESA,
-        nama_kecamatan: (desaTerburuk as VillageData).NAMA_KEC,
-        nama_kabupaten: (desaTerburuk as VillageData).NAMA_KAB,
-        skor_listrik: (desaTerburuk as VillageData).skor_listrik,
-        skor_sanitasi: (desaTerburuk as VillageData).skor_sanitasi,
-        skor_air: (desaTerburuk as VillageData).skor_air,
-        skor_transportasi: (desaTerburuk as VillageData).skor_transportasi,
-        skor_digital: (desaTerburuk as VillageData).skor_digital,
-        skor_aksesibilitas: (desaTerburuk as VillageData).skor_aksesibilitas,
-        label_kluster: (desaTerburuk as VillageData).label_infrastruktur,
-      } : null,
-      desa_dengan_infrastruktur_terbaik: desaTerbaik ? {
-        nama_desa: (desaTerbaik as VillageData).NAMA_DESA,
-        nama_kecamatan: (desaTerbaik as VillageData).NAMA_KEC,
-        nama_kabupaten: (desaTerbaik as VillageData).NAMA_KAB,
-        skor_listrik: (desaTerbaik as VillageData).skor_listrik,
-        skor_sanitasi: (desaTerbaik as VillageData).skor_sanitasi,
-        skor_air: (desaTerbaik as VillageData).skor_air,
-        skor_transportasi: (desaTerbaik as VillageData).skor_transportasi,
-        skor_digital: (desaTerbaik as VillageData).skor_digital,
-        skor_aksesibilitas: (desaTerbaik as VillageData).skor_aksesibilitas,
-        label_kluster: (desaTerbaik as VillageData).label_infrastruktur,
-      } : null,
-      top5_terbaik: top5Terbaik, 
-      top5_terburuk: top5Terburuk, 
-      top5_transportasi_terbaik: top5Transportasi.terbaik, 
-      top5_transportasi_terburuk: top5Transportasi.terburuk,
-      globalInsights, // <-- DIKIRIM KE CHATBOT
-    };
-  }, [activeData, villageData, selectedKab, selectedKec]);
+  // --- Ranking Kabupaten berdasarkan Rata-rata Skor Total Infrastruktur (Contoh) ---
+  const byKab = villageData.reduce((acc, d) => {
+    const key = d.NAMA_KAB;
+    if (!acc[key]) {
+      acc[key] = { nama: key, total: 0, count: 0 };
+    }
+    acc[key].total += getSkorTotal(d);
+    acc[key].count += 1;
+    return acc;
+  }, {} as Record<string, { nama: string; total: number; count: number }>);
+
+  const listKab = Object.values(byKab).map(k => ({
+    nama: k.nama,
+    skor: Number((k.total / k.count).toFixed(1)),
+  }));
+  const sortedKab = [...listKab].sort((a, b) => b.skor - a.skor);
+  const top5Terbaik = sortedKab.slice(0, 5);
+  const top5Terburuk = sortedKab.slice(-5).reverse();
+
+  return {
+    wilayah,
+    jumlah_desa: totalDesa,
+    rata_rata_skor,
+    persentase_akses,
+    distribusi_kluster,
+    infrastruktur_pendukung,
+    desa_dengan_infrastruktur_terburuk: desaTerburuk ? {
+      nama_desa: (desaTerburuk as VillageData).NAMA_DESA,
+      nama_kecamatan: (desaTerburuk as VillageData).NAMA_KEC,
+      nama_kabupaten: (desaTerburuk as VillageData).NAMA_KAB,
+      skor_listrik: (desaTerburuk as VillageData).skor_listrik,
+      skor_sanitasi: (desaTerburuk as VillageData).skor_sanitasi,
+      skor_air: (desaTerburuk as VillageData).skor_air,
+      skor_transportasi: (desaTerburuk as VillageData).skor_transportasi,
+      skor_digital: (desaTerburuk as VillageData).skor_digital,
+      skor_aksesibilitas: (desaTerburuk as VillageData).skor_aksesibilitas,
+      label_kluster: (desaTerburuk as VillageData).label_infrastruktur,
+    } : null,
+    desa_dengan_infrastruktur_terbaik: desaTerbaik ? {
+      nama_desa: (desaTerbaik as VillageData).NAMA_DESA,
+      nama_kecamatan: (desaTerbaik as VillageData).NAMA_KEC,
+      nama_kabupaten: (desaTerbaik as VillageData).NAMA_KAB,
+      skor_listrik: (desaTerbaik as VillageData).skor_listrik,
+      skor_sanitasi: (desaTerbaik as VillageData).skor_sanitasi,
+      skor_air: (desaTerbaik as VillageData).skor_air,
+      skor_transportasi: (desaTerbaik as VillageData).skor_transportasi,
+      skor_digital: (desaTerbaik as VillageData).skor_digital,
+      skor_aksesibilitas: (desaTerbaik as VillageData).skor_aksesibilitas,
+      label_kluster: (desaTerbaik as VillageData).label_infrastruktur,
+    } : null,
+    top5Terbaik,
+    top5Terburuk,
+    globalInsights: null, // Bisa diisi jika perlu
+  };
+}, [activeData, villageData, selectedKab, selectedKec]);
 
   useEffect(() => {
     setPageContext({

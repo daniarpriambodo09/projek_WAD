@@ -1,3 +1,4 @@
+//siDesa/components/dashboard.tsx
 "use client"
 import Overview from "./pages/overview"
 import Infrastruktur from "./pages/infrastruktur"
@@ -6,8 +7,6 @@ import Kesehatan from "./pages/kesehatan"
 import Pendidikan from "./pages/pendidikan"
 import Lingkungan from "./pages/lingkungan"
 import Clustering from "./pages/clustering"
-import PCA from "./pages/pca"
-import Prediction from "./pages/prediction"
 import Digital from "./pages/digital"
 import DataMentah from "./pages/data-mentah"
 import Metodologi from "./pages/metodologi"

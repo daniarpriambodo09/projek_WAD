@@ -1,6 +1,5 @@
-// src/app/(your-path)/digital.tsx
+// siDesa/components/pages/digital.tsx
 "use client"
-
 import { useEffect, useState, useMemo } from "react"
 import {
   BarChart,
@@ -18,10 +17,8 @@ import {
   Cell,
 } from "recharts"
 import dynamic from "next/dynamic"
-
 import { useChatbotContext } from "@/context/ChatbotContext"
 import { supabase } from "@/lib/supabaseClient"
-
 interface DigitalData {
   NAMA_KAB: string
   NAMA_KEC: string
@@ -41,29 +38,39 @@ interface DigitalData {
   Latitude: number
   Longitude: number
 }
-
 const MapComponent = dynamic(() => import("./MapComponent"), {
   ssr: false,
   loading: () => (
     <div 
-      className="h-56 sm:h-80 md:h-96 rounded-lg animate-pulse flex items-center justify-center"
+      className="h-56 sm:h-80 md:h-96 rounded-lg flex items-center justify-center"
       style={{
-        background: "rgba(10, 31, 26, 0.6)",
-        border: "1px solid rgba(34, 211, 238, 0.2)",
+        background: "rgba(10, 31, 26, 0.9)",
+        border: "2px solid rgba(34, 211, 238, 0.4)",
+        boxShadow: "0 0 30px rgba(16, 185, 129, 0.3), inset 0 0 40px rgba(34, 211, 238, 0.1)",
       }}
     >
-      <p className="text-sm" style={{ color: "#a8dcc8" }}>Memuat peta...</p>
+      <div className="flex flex-col items-center gap-3">
+        <div 
+          className="animate-spin rounded-full h-12 w-12"
+          style={{
+            border: "4px solid rgba(34, 211, 238, 0.3)",
+            borderTopColor: "#22d3ee",
+            boxShadow: "0 0 20px rgba(34, 211, 238, 0.5)",
+          }}
+        ></div>
+        <p className="text-base font-semibold" style={{ 
+          color: "#ffffff",
+          textShadow: "0 0 10px rgba(34, 211, 238, 0.8)"
+        }}>Memuat peta...</p>
+      </div>
     </div>
   ),
 })
-
 const COLORS = ["#10b981", "#14b8a6", "#22d3ee", "#34d399", "#06b6d4", "#7dd3fc"]
-
 const wrapText = (text: string, maxCharsPerLine = 18) => {
   const words = text.split(" ");
   const lines: string[] = [];
   let currentLine = "";
-
   words.forEach((word) => {
     const candidate = currentLine ? `${currentLine} ${word}` : word;
     if (candidate.length > maxCharsPerLine) {
@@ -73,11 +80,9 @@ const wrapText = (text: string, maxCharsPerLine = 18) => {
       currentLine = candidate;
     }
   });
-
   if (currentLine) lines.push(currentLine);
   return lines;
 };
-
 const renderCustomLabel = (props: any) => {
   const { cx, cy, midAngle, outerRadius, percent, name } = props;
   const RADIAN = Math.PI / 180;
@@ -87,48 +92,48 @@ const renderCustomLabel = (props: any) => {
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
   const lines = wrapText(String(name), 25);
   const anchor = x > cx ? "start" : "end";
-
   return (
     <text
       x={x}
       y={y}
-      fill="#d4f4e8"
+      fill="#ffffff"
       textAnchor={anchor}
       dominantBaseline="central"
       fontSize={12}
+      fontWeight="600"
+      style={{
+        textShadow: "0 0 8px rgba(0, 0, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.6)"
+      }}
     >
       {lines.map((line: string, i: number) => (
         <tspan key={i} x={x} dy={i === 0 ? 0 : "1em"}>
           {line}
         </tspan>
       ))}
-      <tspan x={x} dy="1em" fontWeight="bold" fill="#22d3ee">
+      <tspan x={x} dy="1em" fontWeight="bold" fill="#22d3ee" style={{
+        textShadow: "0 0 12px rgba(34, 211, 238, 0.8), 0 0 20px rgba(34, 211, 238, 0.5)"
+      }}>
         {`${(percent * 100).toFixed(0)}%`}
       </tspan>
     </text>
   );
 };
-
 export default function DigitalPage() {
   const [data, setData] = useState<DigitalData[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
-
   // Filter State
   const [selectedKab, setSelectedKab] = useState<string>("")
   const [selectedKec, setSelectedKec] = useState<string>("")
   const [selectedDesa, setSelectedDesa] = useState<string>("")
   const [kecamatanOptions, setKecamatanOptions] = useState<string[]>([])
   const [desaOptions, setDesaOptions] = useState<string[]>([])
-
   // Filter Komponen untuk Grafik
   const [selectedBtsOperator, setSelectedBtsOperator] = useState<string>("bts")
   const [selectedSignal, setSelectedSignal] = useState<string>("telepon")
-
   const {setPageContext} = useChatbotContext();
-
   // === AGREGASI PER KABUPATEN UNTUK TOP5 ===
   const kabupatenAggregates = useMemo(() => {
     if (!data.length) return [];
@@ -146,14 +151,12 @@ export default function DigitalPage() {
       acc[key].total_skor_digital += skor;
       return acc;
     }, {} as Record<string, any>);
-
     return Object.values(agg).map((kab: any) => ({
       nama_kab: kab.nama_kab,
       desa_count: kab.desa_count,
       skor_rata_rata: kab.total_skor_digital / kab.desa_count,
     }));
   }, [data]);
-
   const [kabupatenTerbaik, kabupatenTerburuk] = useMemo(() => {
     if (!kabupatenAggregates.length) return [null, null];
     let best = kabupatenAggregates[0];
@@ -164,10 +167,8 @@ export default function DigitalPage() {
     });
     return [best, worst];
   }, [kabupatenAggregates]);
-
   const top5Digital = useMemo(() => {
     if (!data.length) return { terbaik: [], terburuk: [] };
-
     const byKab = data.reduce((acc, d) => {
       const key = d.NAMA_KAB;
       if (!acc[key]) {
@@ -178,19 +179,16 @@ export default function DigitalPage() {
       acc[key].count += 1;
       return acc;
     }, {} as Record<string, { nama: string; total: number; count: number }>);
-
     const list = Object.values(byKab).map(k => ({
       nama: k.nama,
       skor: k.total / k.count,
     }));
-
     const sorted = [...list].sort((a, b) => b.skor - a.skor);
     return {
       terbaik: sorted.slice(0, 5),
       terburuk: sorted.slice(-5).reverse(),
     };
   }, [data]);
-
   const kecamatanData = useMemo(() => {
     if (!data.length) return [];
     let result = data;
@@ -198,23 +196,18 @@ export default function DigitalPage() {
     if (selectedKec) result = result.filter(item => item.NAMA_KEC === selectedKec);
     return result;
   }, [data, selectedKab, selectedKec]);
-
   const visibleDataSummary = useMemo(() => {
     if (!data.length || !kecamatanData.length) return null;
-
     const totalDesa = kecamatanData.length;
     const avg = (key: keyof DigitalData) =>
       (kecamatanData.reduce((sum, d) => sum + (d[key] as number), 0) / totalDesa).toFixed(1);
-
     let wilayah = "Provinsi Jawa Timur";
     if (selectedKab && !selectedKec) wilayah = `Kabupaten ${selectedKab}`;
     else if (selectedKab && selectedKec) wilayah = `Kecamatan ${selectedKec}, Kabupaten ${selectedKab}`;
-
     let desaTerburuk: DigitalData | null = null;
     let desaTerbaik: DigitalData | null = null;
     let skorMin = Infinity;
     let skorMax = -Infinity;
-
     if (selectedKab && selectedKec) {
       kecamatanData.forEach(des => {
         const skor = des.skor_digital_readiness
@@ -228,7 +221,6 @@ export default function DigitalPage() {
         }
       });
     }
-
     let globalInsights = null;
     if (!selectedKab && !selectedKec) {
       globalInsights = { kabupatenTerbaik, kabupatenTerburuk };
@@ -244,25 +236,21 @@ export default function DigitalPage() {
           acc[key].total_skor += d.skor_digital_readiness;
           return acc;
         }, {} as Record<string, any>);
-
       const kecList = Object.values(kecAgg).map((kec: any) => ({
         nama_kec: kec.nama_kec,
         skor_rata_rata: kec.total_skor / kec.desa_count,
       }));
-
       let kecBest = kecList[0];
       let kecWorst = kecList[0];
       kecList.forEach(kec => {
         if (kec.skor_rata_rata > kecBest.skor_rata_rata) kecBest = kec;
         if (kec.skor_rata_rata < kecWorst.skor_rata_rata) kecWorst = kec;
       });
-
       globalInsights = {
         kecamatanTerbaik: kecBest,
         kecamatanTerburuk: kecWorst,
       };
     }
-
     return {
       wilayah,
       jumlah_desa: totalDesa,
@@ -321,12 +309,11 @@ export default function DigitalPage() {
       top5_terburuk: top5Digital.terburuk,
     };
   }, [kecamatanData, selectedKab, selectedKec, data, kabupatenTerbaik, kabupatenTerburuk]);
-
   useEffect(() => {
     if (visibleDataSummary) {
       setPageContext({
         pageId: "digital",
-        pageTitle: "Analisis Digital",
+        pageTitle: "Dashboard Digital Desa",
         filters: {
           kabupaten: selectedKab || undefined,
           kecamatan: selectedKec || undefined,
@@ -336,25 +323,6 @@ export default function DigitalPage() {
       });
     }
   }, [visibleDataSummary, selectedKab, selectedKec, selectedDesa, setPageContext]);
-
-  useEffect(() => {
-    setPageContext({
-      pageId: "digital",
-      pageTitle: "Analisis Digital",
-      filters: {},
-      visibleDataSummary: { wilayah: "Provinsi Jawa Timur" },
-    });
-
-    return () => {
-      setPageContext({
-        pageId: "overview",
-        pageTitle: "Overview",
-        filters: {},
-        visibleDataSummary: null,
-      });
-    };
-  }, [setPageContext]);
-
   useEffect(() => {
     if (!selectedKab) {
       setKecamatanOptions([])
@@ -368,7 +336,6 @@ export default function DigitalPage() {
     setSelectedKec("")
     setSelectedDesa("")
   }, [selectedKab, data])
-
   useEffect(() => {
     if (!selectedKec || !selectedKab) {
       setDesaOptions([])
@@ -379,13 +346,11 @@ export default function DigitalPage() {
     setDesaOptions(desaList)
     setSelectedDesa("")
   }, [selectedKec, selectedKab, data])
-
   useEffect(() => {
     const fetchData = async () => {
       const { data, error } = await supabase
         .from('cluster_digital')
         .select('*');
-
       if (error) {
         console.error('Error fetching ', error);
         setData([]);
@@ -394,10 +359,8 @@ export default function DigitalPage() {
       }
       setLoading(false);
     };
-
     fetchData();
   }, []);
-
   const activeData = useMemo(() => {
     if (!data.length) return []
     let filtered = data
@@ -406,7 +369,6 @@ export default function DigitalPage() {
     if (selectedDesa) filtered = filtered.filter(item => item.NAMA_DESA === selectedDesa)
     return filtered
   }, [data, selectedKab, selectedKec, selectedDesa])
-
   const tableData = useMemo(() => {
     if (!data.length) return []
     let result = data
@@ -424,15 +386,12 @@ export default function DigitalPage() {
     }
     return result
   }, [data, selectedKab, selectedKec, searchTerm])
-
   const startIndex = (currentPage - 1) * 5
   const endIndex = startIndex + 5
   const paginatedData = useMemo(() => tableData.slice(startIndex, endIndex), [tableData, startIndex, endIndex])
   const tableTotalPages = Math.ceil(tableData.length / 5)
-
   const mapMarkers = useMemo(() => {
     if (!data.length) return []
-
     const isValidCoord = (lat: number, lng: number) => {
       return (
         lat !== 0 &&
@@ -443,11 +402,9 @@ export default function DigitalPage() {
         lng >= 110 && lng <= 115
       )
     }
-
     // ====== MODE: LEVEL KABUPATEN ======
     if (!selectedKab) {
       const kabupatenMap = new Map();
-
       data.forEach(item => {
         if (isValidCoord(item.Latitude, item.Longitude) && !kabupatenMap.has(item.NAMA_KAB)) {
           kabupatenMap.set(item.NAMA_KAB, {
@@ -456,33 +413,27 @@ export default function DigitalPage() {
             name: item.NAMA_KAB,
             cluster: item.cluster,
             label: item.label,
-
             // Ambil satu sample data untuk ditampilkan di tooltip
             skor_digitalisasi_pemdes: item.skor_digitalisasi_pemdes,
             skor_digital_readiness: item.skor_digital_readiness,
           });
         }
       });
-
       return Array.from(kabupatenMap.values()).map(m => ({
         name: m.name,
         position: [m.lat, m.lng] as [number, number],
         kabupaten: m.name,
         kecamatan: "",
-
         cluster: m.cluster,
         label: m.label,
-
         // Data tambahan untuk tooltip
         skor_digitalisasi_pemdes: m.skor_digitalisasi_pemdes,
         skor_digital_readiness: m.skor_digital_readiness,
       }));
     }
-
     // ====== MODE: LEVEL KECAMATAN ======
     if (selectedKab && !selectedKec) {
       const kecamatanMap = new Map();
-
       data
         .filter(d => d.NAMA_KAB === selectedKab)
         .forEach(item => {
@@ -496,7 +447,6 @@ export default function DigitalPage() {
                 kabupaten: item.NAMA_KAB,
                 cluster: item.cluster,
                 label: item.label,
-
                 // Ambil satu sample data per kecamatan
                 skor_digitalisasi_pemdes: item.skor_digitalisasi_pemdes,
                 skor_digital_readiness: item.skor_digital_readiness,
@@ -504,22 +454,18 @@ export default function DigitalPage() {
             }
           }
         });
-
       return Array.from(kecamatanMap.values()).map(m => ({
         name: m.name,
         position: [m.lat, m.lng] as [number, number],
         kabupaten: m.kabupaten,
         kecamatan: m.name,
-
         cluster: m.cluster,
         label: m.label,
-
         // Data tambahan untuk tooltip
         skor_digitalisasi_pemdes: m.skor_digitalisasi_pemdes,
         skor_digital_readiness: m.skor_digital_readiness,
       }));
     }
-
     // ====== MODE: LEVEL DESA ======
     if (selectedKab && selectedKec) {
       return data
@@ -534,16 +480,13 @@ export default function DigitalPage() {
           position: [m.Latitude, m.Longitude] as [number, number],
           kabupaten: m.NAMA_KAB,
           kecamatan: m.NAMA_KEC,
-
           cluster: m.cluster,
           label: m.label,
-
           // Data tambahan untuk tooltip
           skor_digitalisasi_pemdes: m.skor_digitalisasi_pemdes,
           skor_digital_readiness: m.skor_digital_readiness,
         }));
     }
-
     // Default: tampilkan semua desa jika tidak ada filter
     return data
       .filter(m => isValidCoord(m.Latitude, m.Longitude))
@@ -552,16 +495,13 @@ export default function DigitalPage() {
         position: [m.Latitude, m.Longitude] as [number, number],
         kabupaten: m.NAMA_KAB,
         kecamatan: m.NAMA_KEC,
-
         cluster: m.cluster,
         label: m.label,
-
         // Data tambahan untuk tooltip
         skor_digitalisasi_pemdes: m.skor_digitalisasi_pemdes,
         skor_digital_readiness: m.skor_digital_readiness,
       }));
   }, [data, selectedKab, selectedKec, selectedDesa]);
-
   const btsOperatorByKabupaten = useMemo(() => {
     if (!data.length) return []
     const process = (items: DigitalData[]) => {
@@ -573,7 +513,6 @@ export default function DigitalPage() {
         acc[key].count += 1
         return acc
       }, {} as Record<string, { name: string; totalBts: number; totalOperator: number; count: number }>)
-
       if (selectedBtsOperator === "bts") {
         return Object.values(grouped).map(item => ({
           name: item.name,
@@ -591,7 +530,6 @@ export default function DigitalPage() {
         operator: Number((item.totalOperator / item.count).toFixed(1)),
       }))
     }
-
     if (selectedKab && selectedKec && selectedDesa) {
       return process(data.filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec && d.NAMA_DESA === selectedDesa))
     } else if (selectedKab && selectedKec) {
@@ -602,7 +540,6 @@ export default function DigitalPage() {
       return process(data)
     }
   }, [data, selectedKab, selectedKec, selectedDesa, selectedBtsOperator])
-
   const signalByKabupaten = useMemo(() => {
     if (!data.length) return []
     const process = (items: DigitalData[]) => {
@@ -614,7 +551,6 @@ export default function DigitalPage() {
         acc[key].count += 1
         return acc
       }, {} as Record<string, { name: string; totalTelepon: number; totalInternet: number; count: number }>)
-
       if (selectedSignal === "telepon") {
         return Object.values(grouped).map(item => ({
           name: item.name,
@@ -632,7 +568,6 @@ export default function DigitalPage() {
         internet: Number((item.totalInternet / item.count).toFixed(1)),
       }))
     }
-
     if (selectedKab && selectedKec && selectedDesa) {
       return process(data.filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec && d.NAMA_DESA === selectedDesa))
     } else if (selectedKab && selectedKec) {
@@ -643,7 +578,6 @@ export default function DigitalPage() {
       return process(data)
     }
   }, [data, selectedKab, selectedKec, selectedDesa, selectedSignal])
-
   const digitalInfraChartData = useMemo(() => {
     if (!activeData.length) return []
     const avg = (key: keyof DigitalData) => {
@@ -656,7 +590,6 @@ export default function DigitalPage() {
       { name: "Internet Kantor Desa", avg: avg("internet_kantordesa") },
     ]
   }, [activeData])
-
   const clusterDistribution = useMemo(() => {
     if (!activeData.length) return []
     return activeData.reduce(
@@ -669,7 +602,6 @@ export default function DigitalPage() {
       [] as Array<{ name: string; value: number }>
     )
   }, [activeData])
-
   const stats = useMemo(() => {
     if (!activeData.length) {
       return {
@@ -686,33 +618,36 @@ export default function DigitalPage() {
       avgSinyalInternet: (activeData.reduce((sum, d) => sum + d.sinyal_internet, 0) / activeData.length).toFixed(1),
     }
   }, [activeData])
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
         <div className="text-center">
           <div 
-            className="animate-spin rounded-full h-12 w-12 mx-auto mb-4"
+            className="animate-spin rounded-full h-16 w-16 mx-auto mb-6"
             style={{
-              border: "3px solid rgba(34, 211, 238, 0.2)",
+              border: "4px solid rgba(34, 211, 238, 0.3)",
               borderTopColor: "#22d3ee",
+              boxShadow: "0 0 30px rgba(34, 211, 238, 0.6)",
             }}
           ></div>
-          <p style={{ color: "#a8dcc8" }}>Memuat data dari server...</p>
+          <p className="text-xl font-bold" style={{ 
+            color: "#ffffff",
+            textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 8px rgba(0, 0, 0, 0.8)"
+          }}>Memuat data dari server...</p>
         </div>
       </div>
     )
   }
-
   return (
     <div className="min-h-screen">
-      {/* STICKY HEADER */}
+      {/* STICKY HEADER - Mobile Optimized */}
       <div 
-        className="sticky top-0 z-[999] shadow-sm"
+        className="sticky top-0 z-[999] shadow-lg"
         style={{
-          background: "rgba(10, 31, 26, 0.9)",
+          background: "rgba(10, 31, 26, 0.98)",
           backdropFilter: "blur(20px)",
-          borderBottom: "1px solid rgba(34, 211, 238, 0.2)",
+          borderBottom: "2px solid rgba(34, 211, 238, 0.5)",
+          boxShadow: "0 4px 20px rgba(16, 185, 129, 0.3), 0 0 40px rgba(34, 211, 238, 0.2)",
         }}
       >
         <div className="px-3 sm:px-5 py-3 sm:py-4">
@@ -724,29 +659,38 @@ export default function DigitalPage() {
                   background: "linear-gradient(135deg, #22d3ee, #10b981)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
+                  textShadow: "0 0 30px rgba(34, 211, 238, 0.5)",
+                  filter: "drop-shadow(0 2px 8px rgba(16, 185, 129, 0.6))",
                 }}
               >
                 Dashboard Digital Desa
               </h1>
-              <p className="text-xs sm:text-sm mt-1" style={{ color: "#a8dcc8" }}>
+              <p className="text-xs sm:text-sm mt-1 font-semibold" style={{ 
+                color: "#ffffff",
+                textShadow: "0 0 10px rgba(255, 255, 255, 0.5), 0 2px 4px rgba(0, 0, 0, 0.6)"
+              }}>
                 Data kluster transformasi digital masyarakat per desa
               </p>
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="ml-3 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shrink-0 transition-all"
+              className="ml-3 px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shrink-0 transition-all"
               style={{
-                background: "rgba(34, 211, 238, 0.15)",
-                border: "1px solid rgba(34, 211, 238, 0.3)",
-                color: "#22d3ee",
+                background: "linear-gradient(135deg, rgba(34, 211, 238, 0.25), rgba(16, 185, 129, 0.25))",
+                border: "2px solid rgba(34, 211, 238, 0.6)",
+                color: "#ffffff",
+                boxShadow: "0 0 20px rgba(34, 211, 238, 0.4), inset 0 0 15px rgba(16, 185, 129, 0.2)",
+                textShadow: "0 0 10px rgba(34, 211, 238, 0.8)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(34, 211, 238, 0.25)"
-                e.currentTarget.style.boxShadow = "0 0 20px rgba(34, 211, 238, 0.3)"
+                e.currentTarget.style.background = "linear-gradient(135deg, rgba(34, 211, 238, 0.4), rgba(16, 185, 129, 0.4))"
+                e.currentTarget.style.boxShadow = "0 0 30px rgba(34, 211, 238, 0.6), inset 0 0 20px rgba(16, 185, 129, 0.3)"
+                e.currentTarget.style.transform = "translateY(-2px)"
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(34, 211, 238, 0.15)"
-                e.currentTarget.style.boxShadow = "none"
+                e.currentTarget.style.background = "linear-gradient(135deg, rgba(34, 211, 238, 0.25), rgba(16, 185, 129, 0.25))"
+                e.currentTarget.style.boxShadow = "0 0 20px rgba(34, 211, 238, 0.4), inset 0 0 15px rgba(16, 185, 129, 0.2)"
+                e.currentTarget.style.transform = "translateY(0)"
               }}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -759,63 +703,75 @@ export default function DigitalPage() {
             <div 
               className="space-y-2 sm:space-y-3 pt-3 animate-in slide-in-from-top duration-200"
               style={{
-                borderTop: "1px solid rgba(34, 211, 238, 0.2)",
+                borderTop: "2px solid rgba(34, 211, 238, 0.4)",
               }}
             >
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                 <div>
-                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#d4f4e8" }}>Kabupaten</label>
+                  <label className="text-xs font-bold mb-1 block" style={{ 
+                    color: "#ffffff",
+                    textShadow: "0 0 8px rgba(34, 211, 238, 0.6)"
+                  }}>Kabupaten</label>
                   <select
                     value={selectedKab}
                     onChange={(e) => setSelectedKab(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2"
+                    className="w-full px-3 py-2 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2"
                     style={{
-                      background: "rgba(16, 185, 129, 0.1)",
-                      border: "1px solid rgba(34, 211, 238, 0.3)",
-                      color: "#d4f4e8",
+                      background: "rgba(16, 185, 129, 0.15)",
+                      border: "2px solid rgba(34, 211, 238, 0.5)",
+                      color: "#ffffff",
+                      boxShadow: "0 0 15px rgba(34, 211, 238, 0.3), inset 0 0 10px rgba(10, 31, 26, 0.8)",
                     }}
                   >
-                    <option value="" style={{ background: "#1a3a32" }}>Semua Kabupaten</option>
+                    <option value="" style={{ background: "#0a1f1a", color: "#ffffff" }}>Semua Kabupaten</option>
                     {[...new Set(data.map(d => d.NAMA_KAB))].sort().map(kab => (
-                      <option key={kab} value={kab} style={{ background: "#1a3a32" }}>{kab}</option>
+                      <option key={kab} value={kab} style={{ background: "#0a1f1a", color: "#ffffff" }}>{kab}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#d4f4e8" }}>Kecamatan</label>
+                  <label className="text-xs font-bold mb-1 block" style={{ 
+                    color: "#ffffff",
+                    textShadow: "0 0 8px rgba(34, 211, 238, 0.6)"
+                  }}>Kecamatan</label>
                   <select
                     value={selectedKec}
                     onChange={(e) => setSelectedKec(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
-                      background: "rgba(16, 185, 129, 0.1)",
-                      border: "1px solid rgba(34, 211, 238, 0.3)",
-                      color: "#d4f4e8",
+                      background: "rgba(16, 185, 129, 0.15)",
+                      border: "2px solid rgba(34, 211, 238, 0.5)",
+                      color: "#ffffff",
+                      boxShadow: "0 0 15px rgba(34, 211, 238, 0.3), inset 0 0 10px rgba(10, 31, 26, 0.8)",
                     }}
                     disabled={!selectedKab}
                   >
-                    <option value="" style={{ background: "#1a3a32" }}>Semua Kecamatan</option>
+                    <option value="" style={{ background: "#0a1f1a", color: "#ffffff" }}>Semua Kecamatan</option>
                     {kecamatanOptions.map(kec => (
-                      <option key={kec} value={kec} style={{ background: "#1a3a32" }}>{kec}</option>
+                      <option key={kec} value={kec} style={{ background: "#0a1f1a", color: "#ffffff" }}>{kec}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#d4f4e8" }}>Desa</label>
+                  <label className="text-xs font-bold mb-1 block" style={{ 
+                    color: "#ffffff",
+                    textShadow: "0 0 8px rgba(34, 211, 238, 0.6)"
+                  }}>Desa</label>
                   <select
                     value={selectedDesa}
                     onChange={(e) => setSelectedDesa(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
-                      background: "rgba(16, 185, 129, 0.1)",
-                      border: "1px solid rgba(34, 211, 238, 0.3)",
-                      color: "#d4f4e8",
+                      background: "rgba(16, 185, 129, 0.15)",
+                      border: "2px solid rgba(34, 211, 238, 0.5)",
+                      color: "#ffffff",
+                      boxShadow: "0 0 15px rgba(34, 211, 238, 0.3), inset 0 0 10px rgba(10, 31, 26, 0.8)",
                     }}
                     disabled={!selectedKec}
                   >
-                    <option value="" style={{ background: "#1a3a32" }}>Semua Desa</option>
+                    <option value="" style={{ background: "#0a1f1a", color: "#ffffff" }}>Semua Desa</option>
                     {desaOptions.map(desa => (
-                      <option key={desa} value={desa} style={{ background: "#1a3a32" }}>{desa}</option>
+                      <option key={desa} value={desa} style={{ background: "#0a1f1a", color: "#ffffff" }}>{desa}</option>
                     ))}
                   </select>
                 </div>
@@ -827,8 +783,13 @@ export default function DigitalPage() {
                     setSelectedKec("")
                     setSelectedDesa("")
                   }}
-                  className="text-xs font-medium flex items-center gap-1 transition-all"
-                  style={{ color: "#ef4444" }}
+                  className="text-xs font-bold flex items-center gap-1 transition-all px-3 py-1.5 rounded-lg"
+                  style={{ 
+                    color: "#ffffff",
+                    background: "rgba(239, 68, 68, 0.2)",
+                    border: "1px solid rgba(239, 68, 68, 0.5)",
+                    boxShadow: "0 0 15px rgba(239, 68, 68, 0.3)",
+                  }}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -840,40 +801,54 @@ export default function DigitalPage() {
           )}
         </div>
       </div>
-
       <div className="px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {/* Stats Cards */}
+        {/* Stats Cards - Enhanced Contrast */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[
-            { label: "Total Desa", value: stats.totalDesa, color: "from-emerald-700 to-emerald-200" },
-            { label: "Rata-rata Jumlah BTS", value: stats.avgBts, color: "from-green-700 to-green-300"  },
-            { label: "Rata-rata Jumlah Operator", value: stats.avgOperator, color: "from-teal-700 to-teal-300" },
-            { label: "Rata-rata Sinyal Internet", value: stats.avgSinyalInternet + "%", color: "from-cyan-700 to-cyan-300" },
+            { label: "Total Desa", value: stats.totalDesa, gradient: "linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(52, 211, 153, 0.9) 100%)", shadow: "0 8px 32px rgba(16, 185, 129, 0.5)" },
+            { label: "Rata-rata Jumlah BTS", value: stats.avgBts, gradient: "linear-gradient(135deg, rgba(20, 184, 166, 0.95) 0%, rgba(45, 212, 191, 0.9) 100%)", shadow: "0 8px 32px rgba(20, 184, 166, 0.5)" },
+            { label: "Rata-rata Jumlah Operator", value: stats.avgOperator, gradient: "linear-gradient(135deg, rgba(34, 211, 238, 0.95) 0%, rgba(125, 211, 252, 0.9) 100%)", shadow: "0 8px 32px rgba(34, 211, 238, 0.5)" },
+            { label: "Rata-rata Sinyal Internet", value: stats.avgSinyalInternet + "%", gradient: "linear-gradient(135deg, rgba(6, 182, 212, 0.95) 0%, rgba(34, 211, 238, 0.9) 100%)", shadow: "0 8px 32px rgba(6, 182, 212, 0.5)" },
           ].map((stat, idx) => (
-            <div key={idx} className={`bg-gradient-to-br ${stat.color} rounded-xl p-4 shadow-lg text-white`}>
-              <p className="text-xs sm:text-sm font-medium opacity-90 mb-1">{stat.label}</p>
-              <p className="text-2xl sm:text-3xl font-bold">{stat.value}</p>
+            <div 
+              key={idx} 
+              className="rounded-xl p-4 text-white transition-transform hover:scale-105"
+              style={{
+                background: stat.gradient,
+                boxShadow: `${stat.shadow}, inset 0 0 30px rgba(255, 255, 255, 0.15)`,
+                border: "2px solid rgba(255, 255, 255, 0.3)",
+              }}
+            >
+              <p className="text-xs sm:text-sm font-bold mb-1" style={{
+                textShadow: "0 2px 4px rgba(0, 0, 0, 0.5)"
+              }}>{stat.label}</p>
+              <p className="text-2xl sm:text-3xl font-black" style={{
+                textShadow: "0 3px 6px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 255, 255, 0.4)"
+              }}>{stat.value}</p>
             </div>
           ))}
         </div>
-
-        {/* Map Section */}
-        <div 
-          className="rounded-xl shadow-md overflow-hidden"
+        {/* Map Section - Enhanced */}
+        <div
+          className="rounded-xl shadow-xl overflow-hidden transition-transform hover:scale-[1.01]"
           style={{
-            background: "rgba(10, 31, 26, 0.7)",
-            border: "1px solid rgba(34, 211, 238, 0.2)",
-            boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)",
+            background: "rgba(10, 31, 26, 0.95)",
+            border: "2px solid rgba(34, 211, 238, 0.5)",
+            boxShadow: "0 0 40px rgba(16, 185, 129, 0.4), inset 0 0 30px rgba(34, 211, 238, 0.1)",
           }}
         >
-          <div 
+          <div
             className="px-4 py-3"
             style={{
-              borderBottom: "1px solid rgba(34, 211, 238, 0.2)",
-              background: "rgba(16, 185, 129, 0.08)",
+              background: "linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(34, 211, 238, 0.2))",
+              borderBottom: "2px solid rgba(34, 211, 238, 0.5)",
+              boxShadow: "0 4px 15px rgba(34, 211, 238, 0.3)",
             }}
           >
-            <h2 className="text-base sm:text-lg font-semibold" style={{ color: "#d4f4e8" }}>
+            <h2 className="text-base sm:text-lg font-black" style={{
+              color: "#ffffff",
+              textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.7)"
+            }}>
               Sebaran Desa ({mapMarkers.length} lokasi)
             </h2>
           </div>
@@ -882,20 +857,26 @@ export default function DigitalPage() {
               markers={mapMarkers}
               renderTooltip={(marker) => (
                 <div
-                  className="px-4 py-3 rounded-xl shadow-lg bg-[rgba(15,35,30,0.9)] border border-[rgba(34,211,238,0.4)] backdrop-blur-sm text-white space-y-2 max-w-xs"
+                  className="px-4 py-3 rounded-xl shadow-2xl text-white space-y-2 max-w-xs"
                   style={{
-                    boxShadow: "0 4px 16px rgba(34,211,238,0.2)",
+                    background: "rgba(10, 31, 26, 0.98)",
+                    border: "2px solid rgba(34, 211, 238, 0.6)",
+                    backdropFilter: "blur(20px)",
+                    boxShadow: "0 8px 32px rgba(34, 211, 238, 0.5), 0 0 60px rgba(16, 185, 129, 0.3), inset 0 0 30px rgba(34, 211, 238, 0.15)",
                     fontSize: '14px',
                     lineHeight: '1.5'
                   }}
                 >
-                  {/* Nama Utama */}
-                  <div className="font-bold text-lg tracking-tight text-[#d4f4e8]">
+                  <div className="font-black text-lg tracking-tight" style={{
+                    color: "#ffffff",
+                    textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.8)"
+                  }}>
                     {marker.name}
                   </div>
-
-                  {/* Informasi Lokasi */}
-                  <div className="space-y-1 text-xs text-[#a8dcc8]">
+                  <div className="space-y-1 text-xs font-semibold" style={{
+                    color: "#ffffff",
+                    textShadow: "0 0 8px rgba(255, 255, 255, 0.6), 0 1px 3px rgba(0, 0, 0, 0.7)"
+                  }}>
                     {marker.kecamatan && (
                       <div className="flex items-center gap-1">
                         <span className="text-[12px]">📍</span>
@@ -904,37 +885,45 @@ export default function DigitalPage() {
                     )}
                     {marker.kabupaten && (
                       <div className="flex items-center gap-1">
-                        <span className="text-[12px]">🏛️</span>
+                        <span className="text-[12px]">🗺️</span>
                         <span>Kab. {marker.kabupaten}</span>
                       </div>
                     )}
                   </div>
-
-                  {/* Badge Label (seperti contoh visual) */}
                   {marker.label && (
                     <div
-                      className="mt-2 px-3 py-1.5 rounded-lg font-semibold text-sm text-[#22d3ee] bg-[rgba(34,211,238,0.15)] border border-[rgba(34,211,238,0.3)] whitespace-nowrap"
+                      className="mt-2 px-3 py-1.5 rounded-lg font-black text-sm whitespace-nowrap"
                       style={{
-                        boxShadow: "inset 0 0 4px rgba(34,211,238,0.2)"
+                        color: "#ffffff",
+                        background: "linear-gradient(135deg, rgba(34, 211, 238, 0.3), rgba(16, 185, 129, 0.3))",
+                        border: "2px solid rgba(34, 211, 238, 0.6)",
+                        boxShadow: "0 0 20px rgba(34, 211, 238, 0.5), inset 0 0 15px rgba(16, 185, 129, 0.3)",
+                        textShadow: "0 0 10px rgba(34, 211, 238, 0.8)"
                       }}
                     >
                       {marker.label}
                     </div>
                   )}
-
-                  {/* Skor Tambahan */}
                   {(marker.skor_digitalisasi_pemdes !== undefined || marker.skor_digital_readiness !== undefined) && (
-                    <div className="mt-2 pt-2 border-t border-gray-700 space-y-1">
+                    <div className="mt-2 pt-2 space-y-1" style={{
+                      borderTop: "1px solid rgba(34, 211, 238, 0.4)"
+                    }}>
                       {marker.skor_digitalisasi_pemdes !== undefined && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Digitalisasi Pemdes:</span>
-                          <span className="font-medium text-[#22d3ee]">{Number(marker.skor_digitalisasi_pemdes).toFixed(1)}</span>
+                        <div className="flex justify-between text-sm font-bold">
+                          <span style={{ color: "#ffffff", textShadow: "0 0 8px rgba(255, 255, 255, 0.5)" }}>Digitalisasi Pemdes:</span>
+                          <span style={{ 
+                            color: "#22d3ee",
+                            textShadow: "0 0 12px rgba(34, 211, 238, 0.9)"
+                          }}>{Number(marker.skor_digitalisasi_pemdes).toFixed(1)}</span>
                         </div>
                       )}
                       {marker.skor_digital_readiness !== undefined && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Digital Readiness:</span>
-                          <span className="font-medium text-[#22d3ee]">{Number(marker.skor_digital_readiness).toFixed(1)}</span>
+                        <div className="flex justify-between text-sm font-bold">
+                          <span style={{ color: "#ffffff", textShadow: "0 0 8px rgba(255, 255, 255, 0.5)" }}>Digital Readiness:</span>
+                          <span style={{ 
+                            color: "#22d3ee",
+                            textShadow: "0 0 12px rgba(34, 211, 238, 0.9)"
+                          }}>{Number(marker.skor_digital_readiness).toFixed(1)}</span>
                         </div>
                       )}
                     </div>
@@ -944,34 +933,37 @@ export default function DigitalPage() {
             />
           </div>
         </div>
-
-        {/* Charts Section */}
+        {/* Charts Section - Enhanced Contrast */}
         <div className="space-y-4 sm:space-y-6">
           {/* Row 1 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Chart 1: Distribusi Cluster */}
             <div 
-              className="rounded-xl shadow-md overflow-hidden"
+              className="rounded-xl shadow-xl overflow-hidden transition-transform hover:scale-[1.01]"
               style={{
-                background: "rgba(10, 31, 26, 0.7)",
-                border: "1px solid rgba(34, 211, 238, 0.2)",
-                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)",
+                background: "rgba(10, 31, 26, 0.95)",
+                border: "2px solid rgba(34, 211, 238, 0.5)",
+                boxShadow: "0 0 40px rgba(16, 185, 129, 0.4), inset 0 0 30px rgba(34, 211, 238, 0.1)",
               }}
             >
               <div 
                 className="px-4 py-3"
                 style={{
-                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)",
-                  background: "rgba(16, 185, 129, 0.08)",
+                  borderBottom: "2px solid rgba(34, 211, 238, 0.5)",
+                  background: "linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(34, 211, 238, 0.2))",
+                  boxShadow: "0 4px 15px rgba(34, 211, 238, 0.3)",
                 }}
               >
-                <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
+                <h2 className="text-sm sm:text-base font-black" style={{ 
+                  color: "#ffffff",
+                  textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.7)"
+                }}>
                   Distribusi Kluster Digital
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
+                  <PieChart margin={{bottom:10}}>
                     <Pie
                       data={clusterDistribution}
                       cx="50%"
@@ -988,202 +980,230 @@ export default function DigitalPage() {
                     </Pie>
                     <Tooltip 
                       contentStyle={{ 
-                        background: 'rgba(10, 31, 26, 0.95)', 
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        fontSize: '12px'
+                        background: 'rgba(10, 31, 26, 0.98)',
+                        border: '2px solid rgba(34, 211, 238, 0.6)',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        boxShadow: '0 0 30px rgba(34, 211, 238, 0.5)',
                       }} 
                       labelStyle={{
-                          color: "#d4f4e8",      // warna label tooltip
-                          fontWeight: "bold",
+                        color: "#ffffff",
+                        fontWeight: "bold",
                       }}
                       itemStyle={{
-                        color: "#d4f4e8",      // warna nilai tooltip
+                        color: "#22d3ee",
+                        fontWeight: "bold",
                       }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
             </div>
-
             {/* Chart 2: BTS/Operator */}
             <div 
-              className="rounded-xl shadow-md overflow-hidden"
+              className="rounded-xl shadow-xl overflow-hidden transition-transform hover:scale-[1.01]"
               style={{
-                background: "rgba(10, 31, 26, 0.7)",
-                border: "1px solid rgba(34, 211, 238, 0.2)",
-                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)",
+                background: "rgba(10, 31, 26, 0.95)",
+                border: "2px solid rgba(34, 211, 238, 0.5)",
+                boxShadow: "0 0 40px rgba(16, 185, 129, 0.4), inset 0 0 30px rgba(34, 211, 238, 0.1)",
               }}
             >
               <div 
                 className="px-4 py-3"
                 style={{
-                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)",
-                  background: "rgba(16, 185, 129, 0.08)",
+                  borderBottom: "2px solid rgba(34, 211, 238, 0.5)",
+                  background: "linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(34, 211, 238, 0.2))",
+                  boxShadow: "0 4px 15px rgba(34, 211, 238, 0.3)",
                 }}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
+                  <h2 className="text-sm sm:text-base font-black" style={{ 
+                    color: "#ffffff",
+                    textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.7)"
+                  }}>
                     Rata-rata {selectedBtsOperator === "bts" ? "Jumlah BTS" : "Jumlah Operator"} per {selectedKab && selectedKec ? "Desa" : selectedKab ? "Kecamatan" : "Kabupaten"}
                   </h2>
                   <select
                     value={selectedBtsOperator}
                     onChange={(e) => setSelectedBtsOperator(e.target.value)}
-                    className="px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 w-full sm:w-auto"
+                    className="px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 w-full sm:w-auto"
                     style={{
                       background: "rgba(16, 185, 129, 0.15)",
-                      border: "1px solid rgba(34, 211, 238, 0.3)",
-                      color: "#d4f4e8",
+                      border: "2px solid rgba(34, 211, 238, 0.5)",
+                      color: "#ffffff",
+                      boxShadow: "0 0 15px rgba(34, 211, 238, 0.3), inset 0 0 10px rgba(10, 31, 26, 0.8)",
                     }}
                   >
-                    <option value="bts" style={{ background: "#1a3a32" }}>Jumlah BTS</option>
-                    <option value="operator" style={{ background: "#1a3a32" }}>Jumlah Operator</option>
+                    <option value="bts" style={{ background: "#0a1f1a", color: "#ffffff" }}>Jumlah BTS</option>
+                    <option value="operator" style={{ background: "#0a1f1a", color: "#ffffff" }}>Jumlah Operator</option>
                   </select>
                 </div>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={btsOperatorByKabupaten} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.3)" />
                     <XAxis 
                       dataKey="name" 
-                      stroke="#a8dcc8" 
+                      stroke="#ffffff"
                       angle={-45} 
                       textAnchor="end" 
                       height={80} 
                       fontSize={10}
                       interval={0}
+                      style={{ fontWeight: 'bold' }}
                     />
-                    <YAxis stroke="#a8dcc8" fontSize={12} />
+                    <YAxis stroke="#ffffff" fontSize={12} style={{ fontWeight: 'bold' }} />
                     <Tooltip 
                       contentStyle={{ 
-                        background: 'rgba(10, 31, 26, 0.95)', 
-                        border: '1px solid rgba(34, 211, 238, 0.3)',
-                        borderRadius: '8px',
+                        background: 'rgba(10, 31, 26, 0.98)',
+                        border: '2px solid rgba(34, 211, 238, 0.6)',
+                        borderRadius: '12px',
                         fontSize: '12px',
-                        color: '#d4f4e8',
+                        color: '#ffffff',
+                        fontWeight: 'bold',
+                        boxShadow: '0 0 30px rgba(34, 211, 238, 0.5)',
                       }} 
+                      labelStyle={{ color: '#ffffff', fontWeight: 'bold' }}
+                      itemStyle={{ color: '#22d3ee', fontWeight: 'bold' }}
                     />
                     <Bar
                       dataKey="value"
                       fill={selectedBtsOperator === "bts" ? "#10b981" : "#22d3ee"}
                       name={selectedBtsOperator === "bts" ? "Jumlah BTS" : "Jumlah Operator"}
-                      radius={[4, 4, 0, 0]}
+                      radius={[6, 6, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
           </div>
-
           {/* Row 2 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Chart 3: Kualitas Sinyal */}
             <div 
-              className="rounded-xl shadow-md overflow-hidden"
+              className="rounded-xl shadow-xl overflow-hidden transition-transform hover:scale-[1.01]"
               style={{
-                background: "rgba(10, 31, 26, 0.7)",
-                border: "1px solid rgba(34, 211, 238, 0.2)",
-                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)",
+                background: "rgba(10, 31, 26, 0.95)",
+                border: "2px solid rgba(34, 211, 238, 0.5)",
+                boxShadow: "0 0 40px rgba(16, 185, 129, 0.4), inset 0 0 30px rgba(34, 211, 238, 0.1)",
               }}
             >
               <div 
                 className="px-4 py-3"
                 style={{
-                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)",
-                  background: "rgba(16, 185, 129, 0.08)",
+                  borderBottom: "2px solid rgba(34, 211, 238, 0.5)",
+                  background: "linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(34, 211, 238, 0.2))",
+                  boxShadow: "0 4px 15px rgba(34, 211, 238, 0.3)",
                 }}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
+                  <h2 className="text-sm sm:text-base font-black" style={{ 
+                    color: "#ffffff",
+                    textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.7)"
+                  }}>
                     Kualitas Sinyal {selectedSignal === "telepon" ? "Telepon" : "Internet"} per {selectedKab && selectedKec ? "Desa" : selectedKab ? "Kecamatan" : "Kabupaten"}
                   </h2>
                   <select
                     value={selectedSignal}
                     onChange={(e) => setSelectedSignal(e.target.value)}
-                    className="px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 w-full sm:w-auto"
+                    className="px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 w-full sm:w-auto"
                     style={{
                       background: "rgba(16, 185, 129, 0.15)",
-                      border: "1px solid rgba(34, 211, 238, 0.3)",
-                      color: "#d4f4e8",
+                      border: "2px solid rgba(34, 211, 238, 0.5)",
+                      color: "#ffffff",
+                      boxShadow: "0 0 15px rgba(34, 211, 238, 0.3), inset 0 0 10px rgba(10, 31, 26, 0.8)",
                     }}
                   >
-                    <option value="telepon" style={{ background: "#1a3a32" }}>Sinyal Telepon</option>
-                    <option value="internet" style={{ background: "#1a3a32" }}>Sinyal Internet</option>
+                    <option value="telepon" style={{ background: "#0a1f1a", color: "#ffffff" }}>Sinyal Telepon</option>
+                    <option value="internet" style={{ background: "#0a1f1a", color: "#ffffff" }}>Sinyal Internet</option>
                   </select>
                 </div>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={signalByKabupaten} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.3)" />
                     <XAxis 
                       dataKey="name" 
-                      stroke="#a8dcc8" 
+                      stroke="#ffffff"
                       angle={-45} 
                       textAnchor="end" 
                       height={80} 
                       fontSize={10}
                       interval={0}
+                      style={{ fontWeight: 'bold' }}
                     />
-                    <YAxis stroke="#a8dcc8" fontSize={12} />
+                    <YAxis stroke="#ffffff" fontSize={12} style={{ fontWeight: 'bold' }} />
                     <Tooltip 
                       contentStyle={{ 
-                        background: 'rgba(10, 31, 26, 0.95)', 
-                        border: '1px solid rgba(34, 211, 238, 0.3)',
-                        borderRadius: '8px',
+                        background: 'rgba(10, 31, 26, 0.98)',
+                        border: '2px solid rgba(34, 211, 238, 0.6)',
+                        borderRadius: '12px',
                         fontSize: '12px',
-                        color: '#d4f4e8',
+                        color: '#ffffff',
+                        fontWeight: 'bold',
+                        boxShadow: '0 0 30px rgba(34, 211, 238, 0.5)',
                       }} 
+                      labelStyle={{ color: '#ffffff', fontWeight: 'bold' }}
+                      itemStyle={{ color: '#22d3ee', fontWeight: 'bold' }}
                     />
                     <Bar
                       dataKey="value"
                       fill={selectedSignal === "telepon" ? "#14b8a6" : "#22d3ee"}
                       name={selectedSignal === "telepon" ? "Sinyal Telepon (%)" : "Sinyal Internet (%)"}
-                      radius={[4, 4, 0, 0]}
+                      radius={[6, 6, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
-
             {/* Chart 4: Infrastruktur Digital */}
             <div 
-              className="rounded-xl shadow-md overflow-hidden"
+              className="rounded-xl shadow-xl overflow-hidden transition-transform hover:scale-[1.01]"
               style={{
-                background: "rgba(10, 31, 26, 0.7)",
-                border: "1px solid rgba(34, 211, 238, 0.2)",
-                boxShadow: "0 0 30px rgba(16, 185, 129, 0.1)",
+                background: "rgba(10, 31, 26, 0.95)",
+                border: "2px solid rgba(34, 211, 238, 0.5)",
+                boxShadow: "0 0 40px rgba(16, 185, 129, 0.4), inset 0 0 30px rgba(34, 211, 238, 0.1)",
               }}
             >
               <div 
                 className="px-4 py-3"
                 style={{
-                  borderBottom: "1px solid rgba(34, 211, 238, 0.2)",
-                  background: "rgba(16, 185, 129, 0.08)",
+                  borderBottom: "2px solid rgba(34, 211, 238, 0.5)",
+                  background: "linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(34, 211, 238, 0.2))",
+                  boxShadow: "0 4px 15px rgba(34, 211, 238, 0.3)",
                 }}
               >
-                <h2 className="text-sm sm:text-base font-semibold" style={{ color: "#d4f4e8" }}>
+                <h2 className="text-sm sm:text-base font-black" style={{ 
+                  color: "#ffffff",
+                  textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.7)"
+                }}>
                   Rata-rata Infrastruktur Digital
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={digitalInfraChartData} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.1)" />
-                    <XAxis dataKey="name" stroke="#a8dcc8" fontSize={12} />
-                    <YAxis stroke="#a8dcc8" fontSize={12} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.3)" />
+                    <XAxis dataKey="name" stroke="#ffffff" fontSize={12} style={{ fontWeight: 'bold' }} />
+                    <YAxis stroke="#ffffff" fontSize={12} style={{ fontWeight: 'bold' }} />
                     <Tooltip 
                       contentStyle={{ 
-                        background: 'rgba(10, 31, 26, 0.95)', 
-                        border: '1px solid rgba(34, 211, 238, 0.3)',
-                        borderRadius: '8px',
+                        background: 'rgba(10, 31, 26, 0.98)',
+                        border: '2px solid rgba(34, 211, 238, 0.6)',
+                        borderRadius: '12px',
                         fontSize: '12px',
-                        color: '#d4f4e8',
+                        color: '#ffffff',
+                        fontWeight: 'bold',
+                        boxShadow: '0 0 30px rgba(34, 211, 238, 0.5)',
                       }} 
+                      labelStyle={{ color: '#ffffff', fontWeight: 'bold' }}
+                      itemStyle={{ color: '#22d3ee', fontWeight: 'bold' }}
                     />
-                    <Legend wrapperStyle={{ fontSize: '12px', color: '#a8dcc8' }} />
-                    <Bar dataKey="avg" fill="#22d3ee" name="Rata-rata" radius={[4, 4, 0, 0]} />
+                    <Legend wrapperStyle={{ fontSize: '12px', color: '#ffffff', fontWeight: 'bold' }} />
+                    <Bar dataKey="avg" fill="#7dd3fc" name="Rata-rata" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

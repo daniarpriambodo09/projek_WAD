@@ -134,12 +134,63 @@ export default function Chatbot() {
           contextStr += `  • Internet Kantor: ${skor.internet_kantor?.toFixed(1) || "–"}\n`;
           contextStr += `  • SID: ${skor.sid?.toFixed(1) || "–"}\n`;
         } else if (isTipologi) {
-          contextStr += `- Rata-rata skor berdasarkan komponen tipologi:\n`;
-          contextStr += `  • Akses Dasar: ${skor.akses_dasar?.toFixed(1) || "–"}\n`;
-          contextStr += `  • Konektivitas: ${skor.konektivitas?.toFixed(1) || "–"}\n`;
-          contextStr += `  • Kesejahteraan: ${skor.kesejahteraan?.toFixed(1) || "–"}\n`;
-          contextStr += `  • Kualitas Lingkungan: ${skor.kualitas_lingkungan?.toFixed(1) || "–"}\n`;
-          contextStr += `  • Digital Readiness: ${skor.digital_readiness?.toFixed(1) || "–"}\n`;
+          contextStr += `- Rata-rata skor komponen tipologi:\n`;
+          contextStr += `  • Akses Dasar: ${skor.akses_dasar}\n`;
+          contextStr += `  • Konektivitas: ${skor.konektivitas}\n`;
+          contextStr += `  • Pengelolaan Lingkungan: ${skor.pengelolaan_lingkungan}\n`;
+          contextStr += `  • Kesejahteraan: ${skor.kesejahteraan}\n`;
+          contextStr += `  • Kelembagaan Ekonomi: ${skor.kelembagaan_ekonomi}\n`;
+          contextStr += `  • Produktivitas Ekonomi: ${skor.produktivitas_ekonomi}\n`;
+          contextStr += `  • Akses Kesehatan: ${skor.akses_kesehatan}\n`;
+          contextStr += `  • Kualitas Kesehatan: ${skor.kualitas_kesehatan}\n`;
+          contextStr += `  • Program Kesehatan: ${skor.program_kesehatan}\n`;
+          contextStr += `  • Pendidikan Lanjut: ${skor.pendidikan_lanjut}\n`;
+          contextStr += `  • Literasi Masyarakat: ${skor.literasi_masyarakat}\n`;
+          contextStr += `  • Kualitas Lingkungan: ${skor.kualitas_lingkungan}\n`;
+          contextStr += `  • Ketahanan Bencana: ${skor.ketahanan_bencana}\n`;
+          contextStr += `  • Digital Readiness: ${skor.digital_readiness}\n`;
+        }
+      }
+
+      // === DISTRIBUSI TIPOLOGI ===
+      if (visibleDataSummary.distribusi_tipologi) {
+        contextStr += `- Distribusi Tipologi Desa:\n`;
+        Object.entries(visibleDataSummary.distribusi_tipologi).forEach(([label, count]) => {
+          contextStr += `  • ${label}: ${count} desa\n`;
+        });
+      }
+
+      // === DISTRIBUSI SEKTOR EKONOMI ===
+      if (visibleDataSummary.distribusi_sektor) {
+        const s = visibleDataSummary.distribusi_sektor;
+        contextStr += `- Distribusi Sektor Ekonomi:\n`;
+        contextStr += `  • Pertanian: ${s.pertanian} desa\n`;
+        contextStr += `  • Industri: ${s.industri} desa\n`;
+        contextStr += `  • Jasa: ${s.jasa} desa\n`;
+      }
+
+      // === INFRASTRUKTUR PENDUKUNG ===
+      
+      if (visibleDataSummary.infrastruktur_pendukung) {
+        const i = visibleDataSummary.infrastruktur_pendukung;
+        if (isEkonomi) {
+          contextStr += `- Infrastruktur Pendukung Ekonomi (Jumlah Desa):\n`;
+          contextStr += `  • Ada PADES: ${i.ada_pades}\n`;
+          contextStr += `  • Jumlah BUMDES: ${i.jumlah_bumdes}\n`;
+          contextStr += `  • Ada Produk Unggulan: ${i.ada_produk_unggulan}\n`; // ✅ INI DITAMBAHKAN
+          contextStr += `  • Total Industri: ${i.total_industri}\n`;
+          contextStr += `  • Ada Industri: ${i.ada_industri}\n`;
+        } else if(isInfrastruktur){
+          // Tetap pertahankan versi lama untuk halaman lain (overview, dll)
+          contextStr += `- Infrastruktur Pendukung (Jumlah Desa):\n`;
+          contextStr += `  • PADES: ${i.pades}\n`;
+          contextStr += `  • BUMDES: ${i.bumdes}\n`;
+          contextStr += `  • SID: ${i.sid}\n`;
+          contextStr += `  • Vokasi: ${i.vokasi}\n`;
+          contextStr += `  • Mitigasi Bencana: ${i.mitigasi_bencana}\n`;
+          contextStr += `  • Kelengkapan Pendidikan: ${i.kelengkapan_pendidikan}\n`;
+          contextStr += `  • Kelengkapan Kesehatan: ${i.kelengkapan_kesehatan}\n`;
+          contextStr += `  • Kelengkapan Ekonomi: ${i.kelengkapan_ekonomi}\n`;
         }
       }
 
@@ -234,18 +285,56 @@ export default function Chatbot() {
             contextStr += `  • Kluster: ${d.label_kluster}\n`;
           }
       } else if (isTipologi) {
-        if (visibleDataSummary.desa_dengan_konektivitas_terburuk) {
-          const d = visibleDataSummary.desa_dengan_konektivitas_terburuk;
-          contextStr += `- Desa dengan konektivitas terburuk: ${d.nama_desa} (Kec. ${d.nama_kecamatan}, Kab. ${d.nama_kabupaten})\n`;
-          contextStr += `  • Skor: Konektivitas=${d.skor_konektivitas}, Akses Dasar=${d.skor_akses_dasar}\n`;
-          contextStr += `  • Tipologi: ${d.final_label}\n`;
+          if (visibleDataSummary.desa_dengan_konektivitas_terburuk) {
+            const d = visibleDataSummary.desa_dengan_konektivitas_terburuk;
+            contextStr += `- Desa dengan konektivitas terburuk: ${d.nama_desa} (Kec. ${d.nama_kecamatan}, Kab. ${d.nama_kabupaten})\n`;
+            contextStr += `  • Skor: Konektivitas=${d.skor_konektivitas}, Akses Dasar=${d.skor_akses_dasar}, Kesejahteraan=${d.skor_kesejahteraan}\n`;
+            contextStr += `  • Tipologi: ${d.final_label} (${d.cluster_label_detail})\n`;
+          }
+          if (visibleDataSummary.desa_dengan_konektivitas_terbaik) {
+            const d = visibleDataSummary.desa_dengan_konektivitas_terbaik;
+            contextStr += `- Desa dengan konektivitas terbaik: ${d.nama_desa} (Kec. ${d.nama_kecamatan}, Kab. ${d.nama_kabupaten})\n`;
+            contextStr += `  • Skor: Konektivitas=${d.skor_konektivitas}, Akses Dasar=${d.skor_akses_dasar}, Kesejahteraan=${d.skor_kesejahteraan}\n`;
+            contextStr += `  • Tipologi: ${d.final_label} (${d.cluster_label_detail})\n`;
+          }
+      }
+
+      if (isInfrastruktur) {
+        if (visibleDataSummary.top5_transportasi_terbaik && visibleDataSummary.top5_transportasi_terbaik.length > 0) {
+          contextStr += `- 5 besar Kabupaten dengan skor transportasi tertinggi:\n`;
+          visibleDataSummary.top5_transportasi_terbaik.forEach((item : any, i : any) => {
+            contextStr += `  ${i + 1}. ${item.nama} (skor: ${item.skor.toFixed(1)})\n`;
+          });
         }
-        if (visibleDataSummary.desa_dengan_konektivitas_terbaik) {
-          const d = visibleDataSummary.desa_dengan_konektivitas_terbaik;
-          contextStr += `- Desa dengan konektivitas terbaik: ${d.nama_desa} (Kec. ${d.nama_kecamatan}, Kab. ${d.nama_kabupaten})\n`;
-          contextStr += `  • Skor: Konektivitas=${d.skor_konektivitas}, Akses Dasar=${d.skor_akses_dasar}\n`;
-          contextStr += `  • Tipologi: ${d.final_label}\n`;
+        if (visibleDataSummary.top5_transportasi_terburuk && visibleDataSummary.top5_transportasi_terburuk.length > 0) {
+          contextStr += `- 5 besar Kabupaten dengan skor transportasi terendah:\n`;
+          visibleDataSummary.top5_transportasi_terburuk.forEach((item : any, i : any) => {
+            contextStr += `  ${i + 1}. ${item.nama} (skor: ${item.skor.toFixed(1)})\n`;
+          });
         }
+      }
+
+      if (isInfrastruktur) {
+        if (visibleDataSummary.top5_transportasi_terbaik && visibleDataSummary.top5_transportasi_terbaik.length > 0) {
+          contextStr += `- 5 besar Kabupaten dengan skor transportasi tertinggi:\n`;
+          visibleDataSummary.top5_transportasi_terbaik.forEach((item : any, i : any) => {
+            contextStr += `  ${i + 1}. ${item.nama} (skor: ${item.skor.toFixed(1)})\n`;
+          });
+        }
+        if (visibleDataSummary.top5_transportasi_terburuk && visibleDataSummary.top5_transportasi_terburuk.length > 0) {
+          contextStr += `- 5 besar Kabupaten dengan skor transportasi terendah:\n`;
+          visibleDataSummary.top5_transportasi_terburuk.forEach((item : any, i : any) => {
+            contextStr += `  ${i + 1}. ${item.nama} (skor: ${item.skor.toFixed(1)})\n`;
+          });
+        }
+      }
+
+      // === DISTRIBUSI KLUSTER (untuk infrastruktur) ===
+      if (visibleDataSummary.distribusi_kluster_infrastruktur) {
+        contextStr += `- Distribusi Kluster Infrastruktur Desa:\n`;
+        Object.entries(visibleDataSummary.distribusi_kluster_infrastruktur).forEach(([label, count]) => {
+          contextStr += `  • ${label}: ${count} desa\n`;
+        });
       }
 
       if (visibleDataSummary.top5_terbaik && visibleDataSummary.top5_terbaik.length > 0) {
@@ -314,7 +403,8 @@ export default function Chatbot() {
       - Fokus pada pendekatan holistik dan lintas sektor berdasarkan final_label (misal: Desa Tertinggal Prioritas, Desa Agraris Berkembang, dsb.).
       - Gunakan data multidimensional dari akses dasar, konektivitas, kesejahteraan, lingkungan, ekonomi, kesehatan, pendidikan, dan digital.
       - Contoh: "Fokuskan intervensi di Desa X (final_label: Desa Tertinggal Prioritas) pada peningkatan akses dasar dan konektivitas untuk mempercepat pemerataan."
-      - Prioritaskan desa dengan skor terendah di aspek kunci sesuai tipologinya.`;
+      - Prioritaskan desa dengan skor terendah di aspek kunci sesuai tipologinya.
+      - Rekomendasikan intervensi yang sesuai dengan distribusi sektor ekonomi (Pertanian, Industri, Jasa) dan ketersediaan infrastruktur pendukung (BUMDES, SID, PADES, dll).`;
     }else {
         kebijakanInstruksi = `Jika diminta rekomendasi kebijakan, berikan 3 rekomendasi konkret berbasis data yang relevan dengan konteks halaman ini.`;
     }

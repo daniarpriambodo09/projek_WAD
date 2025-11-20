@@ -1,7 +1,6 @@
-// siDesa/components/pages/infrastruktur.tsx
+// siDesa/components/pages/kesehatan.tsx
 "use client"
-import { useEffect, useMemo, useState } from "react"
-import dynamic from "next/dynamic"
+import { useEffect, useState, useMemo } from "react"
 import {
   BarChart,
   Bar,
@@ -17,94 +16,30 @@ import {
   Pie,
   Cell,
 } from "recharts"
+import dynamic from "next/dynamic"
 import { useChatbotContext } from "@/context/ChatbotContext"
-import { supabase } from "@/lib/supabaseClient";
-
-// Di dalam file siDesa/components/pages/infrastruktur.tsx
-interface VillageData {
-  IDDESA: string;
-  NAMA_KAB: string;
-  NAMA_KEC: string;
-  NAMA_DESA: string;
-  Latitude: number;
-  Longitude: number;
-
-  // Akses Listrik
-  kk_pln: number;
-  kk_non_pln: number;
-  kk_tanpa_listrik: number;
-  total_kk: number;
-  rasio_pln: number;
-  rasio_non_pln: number;
-  rasio_tanpa_listrik: number;
-  penerangan_jalan: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  penerangan_surya: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  skor_listrik: number;
-
-  // Akses Air
-  air_minum_aman: number; // 0-100
-  air_cuci_bersih: number; // 0-100
-  skor_air: number;
-
-  // Sanitasi
-  sanitasi_layak: number; // 0-100 atau boolean 0/1, countIf digunakan
-  septik_tank: number;
-  tps: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  tps3r: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  bank_sampah: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  pemilahan_sampah: number;
-  drainase: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  skor_sanitasi: number;
-
-  // Sumber Air
-  sungai: number;
-  irigasi: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  waduk: number;
-  mata_air: number;
-  jumlah_embung: number;
-  skor_sumber_air: number;
-
-  // Transportasi & Aksesibilitas
-  jalan_aspal: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  jalan_keras: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  jalan_tanah: number;
-  akses_jalan: number;
-  angkutan_trayek: number;
-  angkutan_non_trayek: number;
-  angkutan_ada: number;
-  skor_transportasi: number;
-
-  // Digital
-  sinyal_telepon: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  sinyal_internet: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  jumlah_bts: number;
-  jumlah_operator: number;
-  bts_normalized: number;
-  operator_normalized: number;
-  komputer_desa: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  internet_desa: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  warnet: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  skor_digital: number;
-
-  // Aksesibilitas
-  akses_puskesmas: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  akses_pasar: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  akses_sd: number; // Bisa 0-100 atau boolean 0/1, countIf digunakan
-  skor_aksesibilitas: number;
-
-  // Kantor Desa & Geografis
-  kantor_desa_ada: number;
-  kantor_desa_layak: number;
-  kantor_dalam_wilayah: number;
-  topografi_datar: number;
-  permukiman_aman: number;
-  pesisir: number;
-
-  // Kluster
-  cluster: number;
-  label_infrastruktur: string;
+import { supabase } from "@/lib/supabaseClient"
+interface HealthData {
+  NAMA_KAB: string
+  NAMA_KEC: string
+  NAMA_DESA: string
+  total_penduduk: number
+  skor_fasilitas: number
+  skor_tenaga_kesehatan: number
+  skor_gizi: number
+  skor_klb: number
+  skor_program_prioritas: number
+  skor_kesejahteraan: number
+  skor_kesehatan_total: number
+  cluster: number
+  label: string
+  puskesmas_per_1000: number
+  posyandu_per_1000: number
+  dokter_per_1000: number
+  bidan_per_1000: number
+  Longitude: number
+  Latitude: number
 }
-
 const wrapText = (text: string, maxCharsPerLine = 18) => {
   const words = text.split(" ");
   const lines: string[] = [];
@@ -121,7 +56,6 @@ const wrapText = (text: string, maxCharsPerLine = 18) => {
   if (currentLine) lines.push(currentLine);
   return lines;
 };
-// Label kustom untuk PieChart dengan kontras tinggi
 const renderCustomLabel = (props: any) => {
   const { cx, cy, midAngle, outerRadius, percent, name } = props;
   const RADIAN = Math.PI / 180;
@@ -185,123 +119,102 @@ const MapComponent = dynamic(() => import("./MapComponent"), {
     </div>
   ),
 })
-// Warna chart dengan kontras tinggi
 const COLORS = ["#10b981", "#14b8a6", "#22d3ee", "#34d399", "#06b6d4", "#7dd3fc"]
 const ITEMS_PER_PAGE = 10
-export default function Infrastruktur() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [villageData, setVillageData] = useState<VillageData[]>([])
+export default function KesehatanPage() {
+  const [data, setData] = useState<HealthData[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
-  // Filter states
   const [selectedKab, setSelectedKab] = useState<string>("")
   const [selectedKec, setSelectedKec] = useState<string>("")
   const [selectedDesa, setSelectedDesa] = useState<string>("")
   const [kecamatanOptions, setKecamatanOptions] = useState<string[]>([])
   const [desaOptions, setDesaOptions] = useState<string[]>([])
-  const [selectedInfra, setSelectedInfra] = useState<string>("skor_listrik")
-  const { setPageContext } = useChatbotContext();
-  // Update kecamatan options
+  const {setPageContext} = useChatbotContext();
   useEffect(() => {
-    if (selectedKab) {
-      const kecList = [...new Set(villageData.filter(d => d.NAMA_KAB === selectedKab).map(d => d.NAMA_KEC))].sort()
-      setKecamatanOptions(kecList)
-      setSelectedKec("")
-      setSelectedDesa("")
-    } else {
+    if (!selectedKab) {
       setKecamatanOptions([])
+      setDesaOptions([])
       setSelectedKec("")
       setSelectedDesa("")
+      return
     }
-  }, [selectedKab, villageData])
-  // Update desa options
+    const kecList = [...new Set(data.filter(d => d.NAMA_KAB === selectedKab).map(d => d.NAMA_KEC))].sort()
+    setKecamatanOptions(kecList)
+    setSelectedKec("")
+    setSelectedDesa("")
+  }, [selectedKab, data])
   useEffect(() => {
-    if (selectedKec && selectedKab) {
-      const desaList = [...new Set(villageData.filter(d => d.NAMA_KEC === selectedKec && d.NAMA_KAB === selectedKab).map(d => d.NAMA_DESA))].sort()
-      setDesaOptions(desaList)
-      setSelectedDesa("")
-    } else {
+    if (!selectedKec || !selectedKab) {
       setDesaOptions([])
       setSelectedDesa("")
+      return
     }
-  }, [selectedKec, selectedKab, villageData])
-  // Fetch data
+    const desaList = [...new Set(data.filter(d => d.NAMA_KEC === selectedKec && d.NAMA_KAB === selectedKab).map(d => d.NAMA_DESA))].sort()
+    setDesaOptions(desaList)
+    setSelectedDesa("")
+  }, [selectedKec, selectedKab, data])
   useEffect(() => {
     const fetchData = async () => {
       const { data, error } = await supabase
-        .from('cluster_infrastruktur')
+        .from('cluster_kesehatan')
         .select('*');
       if (error) {
-        console.error('Error fetching data:', error);
-        setVillageData([]);
+        console.error('Error fetching ', error);
+        setData([]);
       } else {
-        setVillageData(data);
+        setData(data);
       }
       setLoading(false);
     };
     fetchData();
   }, []);
   const activeData = useMemo(() => {
-    if (!villageData.length) return []
-    let filtered = villageData
+    if (!data.length) return []
+    let filtered = data
     if (selectedKab) filtered = filtered.filter(item => item.NAMA_KAB === selectedKab)
     if (selectedKec) filtered = filtered.filter(item => item.NAMA_KEC === selectedKec)
     if (selectedDesa) filtered = filtered.filter(item => item.NAMA_DESA === selectedDesa)
     return filtered
-  }, [villageData, selectedKab, selectedKec, selectedDesa])
-  const kecamatanData = useMemo(() => {
-    if (!villageData.length) return [];
-    let result = villageData;
-    if (selectedKab) result = result.filter(item => item.NAMA_KAB === selectedKab);
-    if (selectedKec) result = result.filter(item => item.NAMA_KEC === selectedKec);
-    return result;
-  }, [villageData, selectedKab, selectedKec]);
+  }, [data, selectedKab, selectedKec, selectedDesa])
   const kabupatenAggregates = useMemo(() => {
-    if (!villageData.length) return [];
-    const agg = villageData.reduce((acc, d) => {
+    if (!data.length) return [];
+    const agg = data.reduce((acc, d) => {
       const key = d.NAMA_KAB;
       if (!acc[key]) {
         acc[key] = {
           nama_kab: key,
           desa_count: 0,
-          total_listrik: 0,
-          total_sanitasi: 0,
-          total_air: 0,
-          total_transportasi: 0,
-          total_digital: 0,
-          total_aksesibilitas: 0,
+          total_fasilitas: 0,
+          total_tenaga: 0,
+          total_gizi: 0,
+          total_klb: 0,
+          total_program: 0,
+          total_kesehatan: 0,
         };
       }
       acc[key].desa_count += 1;
-      acc[key].total_listrik += d.skor_listrik;
-      acc[key].total_sanitasi += d.skor_sanitasi;
-      acc[key].total_air += d.skor_air;
-      acc[key].total_transportasi += d.skor_transportasi;
-      acc[key].total_digital += d.skor_digital;
-      acc[key].total_aksesibilitas += d.skor_aksesibilitas;
+      acc[key].total_fasilitas += d.skor_fasilitas;
+      acc[key].total_tenaga += d.skor_tenaga_kesehatan;
+      acc[key].total_gizi += d.skor_gizi;
+      acc[key].total_klb += d.skor_klb;
+      acc[key].total_program += d.skor_program_prioritas;
+      acc[key].total_kesehatan += d.skor_kesehatan_total;
       return acc;
     }, {} as Record<string, any>);
     return Object.values(agg).map((kab: any) => ({
       nama_kab: kab.nama_kab,
       desa_count: kab.desa_count,
-      skor_rata_rata: (
-        kab.total_listrik +
-        kab.total_sanitasi +
-        kab.total_air +
-        kab.total_transportasi +
-        kab.total_digital +
-        kab.total_aksesibilitas
-      ) / (6 * kab.desa_count),
-      skor_listrik: kab.total_listrik / kab.desa_count,
-      skor_sanitasi: kab.total_sanitasi / kab.desa_count,
-      skor_air: kab.total_air / kab.desa_count,
-      skor_transportasi: kab.total_transportasi / kab.desa_count,
-      skor_digital: kab.total_digital / kab.desa_count,
-      skor_aksesibilitas: kab.total_aksesibilitas / kab.desa_count,
+      skor_rata_rata: kab.total_kesehatan / kab.desa_count,
+      skor_fasilitas: kab.total_fasilitas / kab.desa_count,
+      skor_tenaga: kab.total_tenaga / kab.desa_count,
+      skor_gizi: kab.total_gizi / kab.desa_count,
+      skor_klb: kab.total_klb / kab.desa_count,
+      skor_program: kab.total_program / kab.desa_count,
     }));
-  }, [villageData]);
-
+  }, [data]);
   const [kabupatenTerbaik, kabupatenTerburuk] = useMemo(() => {
     if (!kabupatenAggregates.length) return [null, null];
     let best = kabupatenAggregates[0];
@@ -312,22 +225,16 @@ export default function Infrastruktur() {
     });
     return [best, worst];
   }, [kabupatenAggregates]);
-
-  const top5Infra = useMemo(() => {
-    if (!villageData.length) return { terbaik: [], terburuk: [] };
-    const byKab = villageData.reduce((acc, d) => {
+  const top5Kesehatan = useMemo(() => {
+    if (!data.length) return { terbaik: [], terburuk: [] };
+    const byKab = data.reduce((acc, d) => {
       const key = d.NAMA_KAB;
-      if (!acc[key]) {
-        acc[key] = { nama: key, total: 0, count: 0 };
-      }
-      acc[key].total += (
-        d.skor_listrik + d.skor_sanitasi + d.skor_air +
-        d.skor_transportasi + d.skor_digital + d.skor_aksesibilitas
-      ) / 6;
+      if (!acc[key]) acc[key] = { nama: key, total: 0, count: 0 };
+      acc[key].total += d.skor_kesehatan_total;
       acc[key].count += 1;
       return acc;
     }, {} as Record<string, { nama: string; total: number; count: number }>);
-    const list = Object.values(byKab).map(k => ({
+    const list= Object.values(byKab).map(k => ({
       nama: k.nama,
       skor: k.total / k.count
     }));
@@ -336,254 +243,168 @@ export default function Infrastruktur() {
       terbaik: sorted.slice(0, 5),
       terburuk: sorted.slice(-5).reverse()
     };
-  }, [villageData]);
-
-  // --- Ranking Kabupaten berdasarkan Rata-rata Skor TRANSPORTASI ---
-  const top5Transportasi = useMemo(() => {
-    if (!villageData.length) return { terbaik: [], terburuk: [] };
-
-    // Agregasi data per kabupaten berdasarkan skor_transportasi
-    const byKab = villageData.reduce((acc, d) => {
-      const key = d.NAMA_KAB;
-      if (!acc[key]) {
-        acc[key] = { nama: key, total: 0, count: 0 };
-      }
-      acc[key].total += d.skor_transportasi; // <-- Fokus ke skor_transportasi
-      acc[key].count += 1;
-      return acc;
-    }, {} as Record<string, { nama: string; total: number; count: number }>);
-
-    // Buat list dan urutkan
-    const listKab = Object.values(byKab).map(k => ({
-      nama: k.nama,
-      skor: Number((k.total / k.count).toFixed(1)),
-    }));
-
-    const sortedKab = [...listKab].sort((a, b) => b.skor - a.skor);
-    const top5Terbaik = sortedKab.slice(0, 5);
-    const top5Terburuk = sortedKab.slice(-5).reverse();
-
-    return { terbaik: top5Terbaik, terburuk: top5Terburuk };
-  }, [villageData]);
-
-  //visibleDataSummary
+  }, [data]);
+  const kecamatanData = useMemo(() => {
+    if (!data.length) return [];
+    let result = data;
+    if (selectedKab) result = result.filter(item => item.NAMA_KAB === selectedKab);
+    if (selectedKec) result = result.filter(item => item.NAMA_KEC === selectedKec);
+    return result;
+  }, [data, selectedKab, selectedKec]);
   const visibleDataSummary = useMemo(() => {
-    if (!activeData.length) return null;
-    if (!villageData.length) return null; // Pastikan villageData tersedia
-
-    const totalDesa = activeData.length;
-
-    // --- Fungsi Pembantu ---
-    const avg = (key: keyof VillageData) => {
-      const valid = activeData.filter(d => d[key] != null && !isNaN(d[key] as number));
-      if (valid.length === 0) return 0;
-      const sum = valid.reduce((acc, d) => acc + (d[key] as number), 0);
-      return Number((sum / valid.length).toFixed(1));
-    };
-
-    const countIf = (condition: (item: VillageData) => boolean) => {
-      return activeData.filter(condition).length;
-    };
-
-    // --- Wilayah ---
+    if (!data.length || !kecamatanData.length) return null;
+    const totalDesa = kecamatanData.length;
+    const avg = (key: keyof HealthData) =>
+      (kecamatanData.reduce((sum, d) => sum + (d[key] as number), 0) / totalDesa).toFixed(1);
     let wilayah = "Provinsi Jawa Timur";
     if (selectedKab && !selectedKec) wilayah = `Kabupaten ${selectedKab}`;
     else if (selectedKab && selectedKec) wilayah = `Kecamatan ${selectedKec}, Kabupaten ${selectedKab}`;
-
-    // --- Rata-rata Skor Infrastruktur ---
-    const rata_rata_skor = {
-      listrik: avg("skor_listrik"),
-      sanitasi: avg("skor_sanitasi"),
-      air: avg("skor_air"),
-      transportasi: avg("skor_transportasi"),
-      digital: avg("skor_digital"),
-      aksesibilitas: avg("skor_aksesibilitas"),
-    };
-
-    // --- Persentase Akses ---
-    const persentase_akses = {
-      air_minum_aman: avg("air_minum_aman"),
-      air_cuci_bersih: avg("air_cuci_bersih"),
-      sanitasi_layak: avg("sanitasi_layak"),
-      penerangan_jalan: avg("penerangan_jalan"),
-    };
-
-    // --- Distribusi Kluster Infrastruktur ---
-    const distribusi_kluster_infrastruktur = activeData.reduce((acc, d) => {
-      acc[d.label_infrastruktur] = (acc[d.label_infrastruktur] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    // --- Infrastruktur Pendukung ---
-    const infrastruktur_pendukung = {
-      penerangan_jalan: countIf(d => d.penerangan_jalan > 0),
-      penerangan_surya: countIf(d => d.penerangan_surya > 0),
-      tps: countIf(d => d.tps > 0),
-      tps3r: countIf(d => d.tps3r > 0),
-      bank_sampah: countIf(d => d.bank_sampah > 0),
-      drainase: countIf(d => d.drainase > 0),
-      jalan_aspal: countIf(d => d.jalan_aspal > 0),
-      jalan_keras: countIf(d => d.jalan_keras > 0),
-      akses_puskesmas: countIf(d => d.akses_puskesmas > 0),
-      akses_pasar: countIf(d => d.akses_pasar > 0),
-      akses_sd: countIf(d => d.akses_sd > 0),
-      sinyal_telepon: countIf(d => d.sinyal_telepon > 0),
-      sinyal_internet: countIf(d => d.sinyal_internet > 0),
-      jumlah_bts: avg("jumlah_bts"),
-      jumlah_operator: avg("jumlah_operator"),
-      komputer_desa: countIf(d => d.komputer_desa > 0),
-      internet_desa: countIf(d => d.internet_desa > 0),
-      warnet: countIf(d => d.warnet > 0),
-    };
-
-    // --- Desa Terbaik & Terburuk ---
-    const getSkorTotal = (d: VillageData) => {
-      return (d.skor_listrik + d.skor_sanitasi + d.skor_air + d.skor_transportasi + d.skor_digital + d.skor_aksesibilitas) / 6;
-    };
-
-    let desaTerburuk: VillageData | null = null;
-    let desaTerbaik: VillageData | null = null;
+    let desaTerburuk: HealthData | null = null;
+    let desaTerbaik: HealthData | null = null;
     let skorMin = Infinity;
     let skorMax = -Infinity;
-
-    activeData.forEach(des => {
-      const skor = getSkorTotal(des);
-      if (skor < skorMin) {
-        skorMin = skor;
-        desaTerburuk = des;
-      }
-      if (skor > skorMax) {
-        skorMax = skor;
-        desaTerbaik = des;
-      }
-    });
-
-    // --- MODIFIKASI UTAMA DI SINI ---
-    // 1. Buat Top 5 Kabupaten (Gunakan logika yang sudah ada di top5Infra)
-    const byKab = villageData.reduce((acc, d) => {
-      const key = d.NAMA_KAB;
-      if (!acc[key]) {
-        acc[key] = { nama: key, total: 0, count: 0 };
-      }
-      acc[key].total += getSkorTotal(d);
-      acc[key].count += 1;
-      return acc;
-    }, {} as Record<string, { nama: string; total: number; count: number }>);
-
-    const listKab = Object.values(byKab).map(k => ({
-      nama: k.nama,
-      skor: Number((k.total / k.count).toFixed(1)),
-    }));
-
-    const sortedKab = [...listKab].sort((a, b) => b.skor - a.skor);
-    const top5Terbaik = sortedKab.slice(0, 5);
-    const top5Terburuk = sortedKab.slice(-5).reverse();
-
-    // 2. Buat globalInsights untuk level Provinsi
+    if (selectedKab && selectedKec) {
+      kecamatanData.forEach(des => {
+        const totalSkor = des.skor_kesehatan_total;
+        if (totalSkor < skorMin) {
+          skorMin = totalSkor;
+          desaTerburuk = des;
+        }
+        if (totalSkor > skorMax) {
+          skorMax = totalSkor;
+          desaTerbaik = des;
+        }
+      });
+    }
     let globalInsights = null;
     if (!selectedKab && !selectedKec) {
-      const kabupatenTerbaik = top5Terbaik[0] ? { nama_kab: top5Terbaik[0].nama, skor_rata_rata: top5Terbaik[0].skor } : null;
-      const kabupatenTerburuk = top5Terburuk[0] ? { nama_kab: top5Terburuk[0].nama, skor_rata_rata: top5Terburuk[0].skor } : null;
       globalInsights = { kabupatenTerbaik, kabupatenTerburuk };
     } else if (selectedKab && !selectedKec) {
-      // Logika existing untuk level kabupaten (kecamatanTerbaik/terburuk) tetap di sini
-      // ... (kode existing Anda untuk kecamatan tetap di sini)
+      const kecAgg = data
+        .filter(d => d.NAMA_KAB === selectedKab)
+        .reduce((acc, d) => {
+          const key = d.NAMA_KEC;
+          if (!acc[key]) {
+            acc[key] = { nama_kec: key, desa_count: 0, total_skor: 0 };
+          }
+          acc[key].desa_count += 1;
+          acc[key].total_skor += d.skor_kesehatan_total;
+          return acc;
+        }, {} as Record<string, any>);
+      const kecList = Object.values(kecAgg).map((kec: any) => ({
+        nama_kec: kec.nama_kec,
+        skor_rata_rata: kec.total_skor / kec.desa_count,
+      }));
+      let kecBest = kecList[0];
+      let kecWorst = kecList[0];
+      kecList.forEach(kec => {
+        if (kec.skor_rata_rata > kecBest.skor_rata_rata) kecBest = kec;
+        if (kec.skor_rata_rata < kecWorst.skor_rata_rata) kecWorst = kec;
+      });
+      globalInsights = {
+        kecamatanTerbaik: kecBest,
+        kecamatanTerburuk: kecWorst,
+      };
     }
-
     return {
       wilayah,
       jumlah_desa: totalDesa,
-      rata_rata_skor,
-      persentase_akses,
-      distribusi_kluster_infrastruktur,
-      infrastruktur_pendukung,
-      desa_dengan_infrastruktur_terburuk: desaTerburuk ? {
-        nama_desa: (desaTerburuk as VillageData).NAMA_DESA,
-        nama_kecamatan: (desaTerburuk as VillageData).NAMA_KEC,
-        nama_kabupaten: (desaTerburuk as VillageData).NAMA_KAB,
-        skor_listrik: (desaTerburuk as VillageData).skor_listrik,
-        skor_sanitasi: (desaTerburuk as VillageData).skor_sanitasi,
-        skor_air: (desaTerburuk as VillageData).skor_air,
-        skor_transportasi: (desaTerburuk as VillageData).skor_transportasi,
-        skor_digital: (desaTerburuk as VillageData).skor_digital,
-        skor_aksesibilitas: (desaTerburuk as VillageData).skor_aksesibilitas,
-        label_kluster: (desaTerburuk as VillageData).label_infrastruktur,
-      } : null,
-      desa_dengan_infrastruktur_terbaik: desaTerbaik ? {
-        nama_desa: (desaTerbaik as VillageData).NAMA_DESA,
-        nama_kecamatan: (desaTerbaik as VillageData).NAMA_KEC,
-        nama_kabupaten: (desaTerbaik as VillageData).NAMA_KAB,
-        skor_listrik: (desaTerbaik as VillageData).skor_listrik,
-        skor_sanitasi: (desaTerbaik as VillageData).skor_sanitasi,
-        skor_air: (desaTerbaik as VillageData).skor_air,
-        skor_transportasi: (desaTerbaik as VillageData).skor_transportasi,
-        skor_digital: (desaTerbaik as VillageData).skor_digital,
-        skor_aksesibilitas: (desaTerbaik as VillageData).skor_aksesibilitas,
-        label_kluster: (desaTerbaik as VillageData).label_infrastruktur,
-      } : null,
-      top5_terbaik: top5Terbaik, 
-      top5_terburuk: top5Terburuk, 
-      top5_transportasi_terbaik: top5Transportasi.terbaik, 
-      top5_transportasi_terburuk: top5Transportasi.terburuk,
-      globalInsights, // <-- DIKIRIM KE CHATBOT
-    };
-  }, [activeData, villageData, selectedKab, selectedKec]);
-
-  useEffect(() => {
-    setPageContext({
-      pageId: "infrastruktur",
-      pageTitle: "Dashboard Infrastruktur Desa",
-      filters: {
-        kabupaten: selectedKab || undefined,
-        kecamatan: selectedKec || undefined,
-        desa: selectedDesa || undefined,
+      rata_rata_skor: {
+        fasilitas: parseFloat(avg("skor_fasilitas")),
+        tenaga_kesehatan: parseFloat(avg("skor_tenaga_kesehatan")),
+        gizi: parseFloat(avg("skor_gizi")),
+        klb: parseFloat(avg("skor_klb")),
+        program_prioritas: parseFloat(avg("skor_program_prioritas")),
+        kesehatan_total: parseFloat(avg("skor_kesehatan_total")),
       },
-      visibleDataSummary,
-    });
-  }, [selectedKab, selectedKec, selectedDesa, visibleDataSummary, setPageContext]);
+      distribusi_kluster: kecamatanData.reduce((acc, d) => {
+        acc[d.label] = (acc[d.label] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      desa_dengan_kesehatan_terburuk: desaTerburuk
+        ? {
+            nama_desa: (desaTerburuk as HealthData).NAMA_DESA,
+            nama_kecamatan: (desaTerburuk as HealthData).NAMA_KEC,
+            nama_kabupaten: (desaTerburuk as HealthData).NAMA_KAB,
+            skor_fasilitas: (desaTerburuk as HealthData).skor_fasilitas,
+            skor_tenaga_kesehatan: (desaTerburuk as HealthData).skor_tenaga_kesehatan,
+            skor_gizi: (desaTerburuk as HealthData).skor_gizi,
+            skor_klb: (desaTerburuk as HealthData).skor_klb,
+            skor_program_prioritas: (desaTerburuk as HealthData).skor_program_prioritas,
+            skor_kesehatan_total: (desaTerburuk as HealthData).skor_kesehatan_total,
+            label_kluster: (desaTerburuk as HealthData).label,
+          }
+        : null,
+      desa_dengan_kesehatan_terbaik: desaTerbaik
+        ? {
+            nama_desa: (desaTerbaik as HealthData).NAMA_DESA,
+            nama_kecamatan: (desaTerbaik as HealthData).NAMA_KEC,
+            nama_kabupaten: (desaTerbaik as HealthData).NAMA_KAB,
+            skor_fasilitas: (desaTerbaik as HealthData).skor_fasilitas,
+            skor_tenaga_kesehatan: (desaTerbaik as HealthData).skor_tenaga_kesehatan,
+            skor_gizi: (desaTerbaik as HealthData).skor_gizi,
+            skor_klb: (desaTerbaik as HealthData).skor_klb,
+            skor_program_prioritas: (desaTerbaik as HealthData).skor_program_prioritas,
+            skor_kesehatan_total: (desaTerbaik as HealthData).skor_kesehatan_total,
+            label_kluster: (desaTerbaik as HealthData).label,
+          }
+        : null,
+      globalInsights,
+      top5_terbaik: top5Kesehatan.terbaik,
+      top5_terburuk: top5Kesehatan.terburuk,
+    };
+  }, [kecamatanData, selectedKab, selectedKec, data, kabupatenTerburuk, kabupatenTerbaik, top5Kesehatan]);
+  useEffect(() => {
+    if (visibleDataSummary) {
+      setPageContext({
+        pageId: "kesehatan",
+        pageTitle: "Dashboard Kesehatan Desa",
+        filters: {
+          kabupaten: selectedKab || undefined,
+          kecamatan: selectedKec || undefined,
+          desa: selectedDesa || undefined,
+        },
+        visibleDataSummary,
+      });
+    }
+  }, [visibleDataSummary, selectedKab, selectedKec, selectedDesa, setPageContext]);
   const tableData = useMemo(() => {
-    if (!villageData.length) return []
-    let result = villageData
-    if (selectedKab) {
-      result = result.filter(item => item.NAMA_KAB === selectedKab)
-    }
-    if (selectedKec) {
-      result = result.filter(item => item.NAMA_KEC === selectedKec)
-    }
+    if (!data.length) return []
+    let result = data
+    if (selectedKab) result = result.filter(item => item.NAMA_KAB === selectedKab)
+    if (selectedKec) result = result.filter(item => item.NAMA_KEC === selectedKec)
     if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
+      const s = searchTerm.toLowerCase()
       result = result.filter(
-        (item) =>
-          item.NAMA_DESA.toLowerCase().includes(searchLower) ||
-          item.NAMA_KEC.toLowerCase().includes(searchLower) ||
-          item.NAMA_KAB.toLowerCase().includes(searchLower) ||
-          item.label_infrastruktur.toLowerCase().includes(searchLower)
+        item =>
+          item.NAMA_DESA.toLowerCase().includes(s) ||
+          item.NAMA_KEC.toLowerCase().includes(s) ||
+          item.NAMA_KAB.toLowerCase().includes(s) ||
+          item.label.toLowerCase().includes(s)
       )
     }
     return result
-  }, [villageData, selectedKab, selectedKec, searchTerm])
+  }, [data, selectedKab, selectedKec, searchTerm])
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
   const endIndex = startIndex + ITEMS_PER_PAGE
-  const paginatedData = useMemo(() => {
-    return tableData.slice(startIndex, endIndex)
-  }, [tableData, startIndex, endIndex])
+  const paginatedData = useMemo(() => tableData.slice(startIndex, endIndex), [tableData, startIndex, endIndex])
   const tableTotalPages = Math.ceil(tableData.length / ITEMS_PER_PAGE)
   const mapMarkers = useMemo(() => {
-    if (!villageData.length) return [];
+    if (!data.length) return [];
     // ====== MODE: LEVEL KABUPATEN ======
     if (!selectedKab) {
       const kabupatenMap = new Map();
-      villageData.forEach(item => {
+      data.forEach(item => {
         if (item.Latitude && item.Longitude && !kabupatenMap.has(item.NAMA_KAB)) {
           kabupatenMap.set(item.NAMA_KAB, {
             lat: item.Latitude,
             lng: item.Longitude,
             name: item.NAMA_KAB,
             cluster: item.cluster,
-            label: item.label_infrastruktur,
+            label: item.label,
             // Ambil satu sample data untuk ditampilkan di tooltip
-            skor_transportasi: item.skor_transportasi,
-            skor_aksesibilitas: item.skor_aksesibilitas,
+            skor_gizi: item.skor_gizi,
+            skor_kesejahteraan: item.skor_kesejahteraan,
           });
         }
       });
@@ -595,14 +416,14 @@ export default function Infrastruktur() {
         cluster: m.cluster,
         label: m.label,
         // Data tambahan untuk tooltip
-        skor_transportasi: m.skor_transportasi,
-        skor_aksesibilitas: m.skor_aksesibilitas,
+        skor_gizi: m.skor_gizi,
+        skor_kesejahteraan: m.skor_kesejahteraan,
       }));
     }
     // ====== MODE: LEVEL KECAMATAN ======
     if (selectedKab && !selectedKec) {
       const kecamatanMap = new Map();
-      villageData
+      data
         .filter(d => d.NAMA_KAB === selectedKab)
         .forEach(item => {
           if (item.Latitude && item.Longitude) {
@@ -614,10 +435,10 @@ export default function Infrastruktur() {
                 name: item.NAMA_KEC,
                 kabupaten: item.NAMA_KAB,
                 cluster: item.cluster,
-                label: item.label_infrastruktur,
+                label: item.label,
                 // Ambil satu sample data per kecamatan
-                skor_transportasi: item.skor_transportasi,
-                skor_aksesibilitas: item.skor_aksesibilitas,
+                skor_gizi: item.skor_gizi,
+                skor_kesejahteraan: item.skor_kesejahteraan,
               });
             }
           }
@@ -630,13 +451,13 @@ export default function Infrastruktur() {
         cluster: m.cluster,
         label: m.label,
         // Data tambahan untuk tooltip
-        skor_transportasi: m.skor_transportasi,
-        skor_aksesibilitas: m.skor_aksesibilitas,
+        skor_gizi: m.skor_gizi,
+        skor_kesejahteraan: m.skor_kesejahteraan,
       }));
     }
     // ====== MODE: LEVEL DESA ======
     if (selectedKab && selectedKec) {
-      return villageData
+      return data
         .filter(
           d =>
             d.NAMA_KAB === selectedKab &&
@@ -650,16 +471,14 @@ export default function Infrastruktur() {
           kabupaten: m.NAMA_KAB,
           kecamatan: m.NAMA_KEC,
           cluster: m.cluster,
-          label: m.label_infrastruktur,
+          label: m.label,
           // Data tambahan untuk tooltip
-          skor_air: m.skor_air,
-          skor_sanitasi: m.skor_sanitasi,
-          skor_transportasi: m.skor_transportasi,
-          skor_aksesibilitas: m.skor_aksesibilitas,
+          skor_gizi: m.skor_gizi,
+          skor_kesejahteraan: m.skor_kesejahteraan,
         }));
     }
     // Default: tampilkan semua desa jika tidak ada filter
-    return villageData
+    return data
       .filter(m => m.Latitude && m.Longitude)
       .map(m => ({
         name: m.NAMA_DESA,
@@ -667,109 +486,113 @@ export default function Infrastruktur() {
         kabupaten: m.NAMA_KAB,
         kecamatan: m.NAMA_KEC,
         cluster: m.cluster,
-        label: m.label_infrastruktur,
+        label: m.label,
         // Data tambahan untuk tooltip
-        skor_air: m.skor_air,
-        skor_sanitasi: m.skor_sanitasi,
-        skor_transportasi: m.skor_transportasi,
-        skor_aksesibilitas: m.skor_aksesibilitas,
+        skor_gizi: m.skor_gizi,
+        skor_kesejahteraan: m.skor_kesejahteraan,
       }));
-  }, [villageData, selectedKab, selectedKec, selectedDesa]);
+  }, [data, selectedKab, selectedKec, selectedDesa]);
   const chartData = useMemo(() => {
-    if (!villageData.length) return { data: [], label: "Data" }
-    const numericKeys = [
-      "skor_listrik",
-      "skor_sanitasi",
-      "skor_air",
-      "skor_transportasi",
-      "skor_digital",
-      "skor_aksesibilitas"
-    ]
-    const safeSelectedInfra = numericKeys.includes(selectedInfra)
-      ? selectedInfra
-      : "skor_listrik"
-    const getKey = (item: VillageData) => {
-      if (selectedKab && selectedKec) return item.NAMA_DESA
-      if (selectedKab) return item.NAMA_KEC
-      return item.NAMA_KAB
+    if (!data.length) return { data: [], label: "Data" }
+    if (selectedKab && selectedKec && selectedDesa) {
+      const desaItem = data.find(d => d.NAMA_DESA === selectedDesa)
+      if (!desaItem) return { data: [], label: "Desa" }
+      return {
+        data: [{ name: desaItem.NAMA_DESA, fasilitas: desaItem.skor_fasilitas, tenaga: desaItem.skor_tenaga_kesehatan }],
+        label: "Desa"
+      }
+    } else if (selectedKab && selectedKec) {
+      const desaData = data.filter(d => d.NAMA_KAB === selectedKab && d.NAMA_KEC === selectedKec)
+      return {
+        data: desaData.map(d => ({ name: d.NAMA_DESA, fasilitas: d.skor_fasilitas, tenaga: d.skor_tenaga_kesehatan })),
+        label: "Desa"
+      }
+    } else if (selectedKab) {
+      const grouped = data
+        .filter(d => d.NAMA_KAB === selectedKab)
+        .reduce((acc, item) => {
+          const existing = acc.find(x => x.name === item.NAMA_KEC)
+          if (existing) {
+            existing.totalFasilitas += item.skor_fasilitas
+            existing.totalTenaga += item.skor_tenaga_kesehatan
+            existing.count += 1
+          } else {
+            acc.push({
+              name: item.NAMA_KEC,
+              totalFasilitas: item.skor_fasilitas,
+              totalTenaga: item.skor_tenaga_kesehatan,
+              count: 1
+            })
+          }
+          return acc
+        }, [] as Array<{ name: string; totalFasilitas: number; totalTenaga: number; count: number }>)
+        .map(item => ({
+          name: item.name,
+          fasilitas: Number((item.totalFasilitas / item.count).toFixed(1)),
+          tenaga: Number((item.totalTenaga / item.count).toFixed(1))
+        }))
+      return { data: grouped, label: "Kecamatan" }
+    } else {
+      const grouped = data
+        .reduce((acc, item) => {
+          const existing = acc.find(x => x.name === item.NAMA_KAB)
+          if (existing) {
+            existing.totalFasilitas += item.skor_fasilitas
+            existing.totalTenaga += item.skor_tenaga_kesehatan
+            existing.count += 1
+          } else {
+            acc.push({
+              name: item.NAMA_KAB,
+              totalFasilitas: item.skor_fasilitas,
+              totalTenaga: item.skor_tenaga_kesehatan,
+              count: 1
+            })
+          }
+          return acc
+        }, [] as Array<{ name: string; totalFasilitas: number; totalTenaga: number; count: number }> )
+        .map(item => ({
+          name: item.name,
+          fasilitas: Number((item.totalFasilitas / item.count).toFixed(1)),
+          tenaga: Number((item.totalTenaga / item.count).toFixed(1))
+        }))
+      return { data: grouped, label: "Kabupaten" }
     }
-    const getValue = (item: VillageData): number => {
-      const rawValue = item[safeSelectedInfra as keyof VillageData]
-      return Number(rawValue) || 0
-    }
-    const grouped = villageData
-      .filter(item => {
-        if (selectedKab && item.NAMA_KAB !== selectedKab) return false
-        if (selectedKec && item.NAMA_KEC !== selectedKec) return false
-        if (selectedDesa && item.NAMA_DESA !== selectedDesa) return false
-        return true
-      })
-      .reduce((acc, item) => {
-        const key = getKey(item)
-        const value = getValue(item)
-        if (!acc[key]) {
-          acc[key] = { name: key, total: 0, count: 0 }
-        }
-        acc[key].total += value
-        acc[key].count += 1
-        return acc
-      }, {} as Record<string, { name: string; total: number; count: number }>)
-    const result = Object.values(grouped).map(item => ({
-      name: item.name,
-      value: Number(((item.total / item.count) || 0).toFixed(1))
-    }))
-    const label = selectedKab && selectedKec ? "Desa" : selectedKab ? "Kecamatan" : "Kabupaten"
-    return { data: result, label }
-  }, [villageData, selectedKab, selectedKec, selectedDesa, selectedInfra])
-  const aksesListrikChartData = useMemo(() => {
-    if (!villageData.length) return []
-    const totalKK = villageData.reduce((sum, d) => sum + d.total_kk, 0)
-    const plnTotal = villageData.reduce((sum, d) => sum + d.kk_pln, 0)
-    const nonPlnTotal = villageData.reduce((sum, d) => sum + d.kk_non_pln, 0)
-    const tanpaListrikTotal = villageData.reduce((sum, d) => sum + d.kk_tanpa_listrik, 0)
-    return [
-      { name: "Akses Listrik", value: Number((((plnTotal + nonPlnTotal) / totalKK) * 100).toFixed(1)) },
-      { name: "Tanpa Akses Listrik", value: Number(((tanpaListrikTotal / totalKK) * 100).toFixed(1)) },
-    ]
-  }, [villageData])
-  const jalanIrigasiChartData = useMemo(() => {
+  }, [data, selectedKab, selectedKec, selectedDesa])
+  const skorComponentChartData = useMemo(() => {
     if (!activeData.length) return []
-    const avg = (key: keyof VillageData) => {
-      const sum = activeData.reduce((acc, item) => acc + (item[key] as number), 0)
-      return Number((sum / activeData.length).toFixed(1))
-    }
+    const n = activeData.length
     return [
-      { name: "Jalan Aspal", avg: avg("jalan_aspal") },
-      { name: "Irigasi", avg: avg("irigasi") },
+      { name: "Gizi", avg: Number((activeData.reduce((sum, item) => sum + item.skor_gizi, 0) / n).toFixed(1)) },
+      { name: "KLB", avg: Number((activeData.reduce((sum, item) => sum + item.skor_klb, 0) / n).toFixed(1)) },
+      { name: "Program", avg: Number((activeData.reduce((sum, item) => sum + item.skor_program_prioritas, 0) / n).toFixed(1)) },
+      { name: "Kesejahteraan", avg: Number((activeData.reduce((sum, item) => sum + item.skor_kesejahteraan, 0) / n).toFixed(1)) },
     ]
   }, [activeData])
-  const peneranganJalanChartData = useMemo(() => {
+  const infraChartData = useMemo(() => {
     if (!activeData.length) return []
-    const withLight = activeData.filter(d => d.penerangan_jalan > 0).length
-    const withoutLight = activeData.filter(d => d.penerangan_jalan === 0).length
+    const n = activeData.length
     return [
-      { name: "Dengan Penerangan", value: withLight },
-      { name: "Tanpa Penerangan", value: withoutLight },
+      { name: "Puskesmas", avg: Number((activeData.reduce((sum, item) => sum + item.puskesmas_per_1000, 0) / n).toFixed(2)) },
+      { name: "Posyandu", avg: Number((activeData.reduce((sum, item) => sum + item.posyandu_per_1000, 0) / n).toFixed(2)) },
     ]
   }, [activeData])
-  const sanitasiLayakChartData = useMemo(() => {
+  const workforceChartData = useMemo(() => {
     if (!activeData.length) return []
-    const layak = activeData.filter(d => d.sanitasi_layak > 0).length
-    const tidakLayak = activeData.filter(d => d.sanitasi_layak === 0).length
+    const n = activeData.length
     return [
-      { name: "Sanitasi Layak", value: layak },
-      { name: "Tidak Layak", value: tidakLayak },
+      { name: "Dokter", avg: Number((activeData.reduce((sum, item) => sum + item.dokter_per_1000, 0) / n).toFixed(2)) },
+      { name: "Bidan", avg: Number((activeData.reduce((sum, item) => sum + item.bidan_per_1000, 0) / n).toFixed(2)) },
     ]
   }, [activeData])
   const clusterDistribution = useMemo(() => {
     if (!activeData.length) return []
     return activeData.reduce(
       (acc, item) => {
-        const existing = acc.find(x => x.name === item.label_infrastruktur)
+        const existing = acc.find(x => x.name === item.label)
         if (existing) {
           existing.value += 1
         } else {
-          acc.push({ name: item.label_infrastruktur, value: 1 })
+          acc.push({ name: item.label, value: 1 })
         }
         return acc
       },
@@ -778,34 +601,15 @@ export default function Infrastruktur() {
   }, [activeData])
   const stats = useMemo(() => {
     if (!activeData.length) {
-      return {
-        totalDesa: 0,
-        avgListrik: "0.0",
-        avgSanitasi: "0.0",
-        avgAir: "0.0",
-        avgTransportasi: "0.0",
-        avgDigital: "0.0",
-        avgAksesibilitas: "0.0",
-      }
+      return { totalDesa: 0, avgFasilitas: "0.0", avgTenaga: "0.0", avgKesehatan: "0.0" }
     }
+    const n = activeData.length
     return {
-      totalDesa: activeData.length,
-      avgListrik: (activeData.reduce((sum, d) => sum + d.skor_listrik, 0) / activeData.length).toFixed(1),
-      avgSanitasi: (activeData.reduce((sum, d) => sum + d.skor_sanitasi, 0) / activeData.length).toFixed(1),
-      avgAir: (activeData.reduce((sum, d) => sum + d.skor_air, 0) / activeData.length).toFixed(1),
-      avgTransportasi: (activeData.reduce((sum, d) => sum + d.skor_transportasi, 0) / activeData.length).toFixed(1),
-      avgDigital: (activeData.reduce((sum, d) => sum + d.skor_digital, 0) / activeData.length).toFixed(1),
-      avgAksesibilitas: (activeData.reduce((sum, d) => sum + d.skor_aksesibilitas, 0) / activeData.length).toFixed(1),
+      totalDesa: n,
+      avgFasilitas: (activeData.reduce((sum, item) => sum + item.skor_fasilitas, 0) / n).toFixed(1),
+      avgTenaga: (activeData.reduce((sum, item) => sum + item.skor_tenaga_kesehatan, 0) / n).toFixed(1),
+      avgKesehatan: (activeData.reduce((sum, item) => sum + item.skor_kesehatan_total, 0) / n).toFixed(1),
     }
-  }, [activeData])
-  const aksesAirChartData = useMemo(() => {
-    if (!activeData.length) return []
-    const airMinum = (activeData.filter(d => d.air_minum_aman > 0).length / activeData.length) * 100
-    const airCuci = (activeData.filter(d => d.air_cuci_bersih > 0).length / activeData.length) * 100
-    return [
-      { name: "Air Minum Aman", value: airMinum },
-      { name: "Air Cuci Bersih", value: airCuci },
-    ]
   }, [activeData])
   if (loading) {
     return (
@@ -852,13 +656,13 @@ export default function Infrastruktur() {
                   filter: "drop-shadow(0 2px 8px rgba(16, 185, 129, 0.6))",
                 }}
               >
-                Dashboard Infrastruktur Desa
+                Dashboard Kesehatan Desa
               </h1>
               <p className="text-xs sm:text-sm mt-1 font-semibold" style={{ 
                 color: "#ffffff",
                 textShadow: "0 0 10px rgba(255, 255, 255, 0.5), 0 2px 4px rgba(0, 0, 0, 0.6)"
               }}>
-                Analisis dan visualisasi data infrastruktur desa
+                Analisis clustering kesehatan masyarakat per desa
               </p>
             </div>
             <button
@@ -888,7 +692,7 @@ export default function Infrastruktur() {
               <span className="hidden sm:inline">Filter</span>
             </button>
           </div>
-          {/* Filter Panel */}
+          {/* Filter Panel - Collapsible on Mobile */}
           {showFilters && (
             <div 
               className="space-y-2 sm:space-y-3 pt-3 animate-in slide-in-from-top duration-200"
@@ -914,7 +718,7 @@ export default function Infrastruktur() {
                     }}
                   >
                     <option value="" style={{ background: "#0a1f1a", color: "#ffffff" }}>Semua Kabupaten</option>
-                    {[...new Set(villageData.map(d => d.NAMA_KAB))].sort().map(kab => (
+                    {[...new Set(data.map(d => d.NAMA_KAB))].sort().map(kab => (
                       <option key={kab} value={kab} style={{ background: "#0a1f1a", color: "#ffffff" }}>{kab}</option>
                     ))}
                   </select>
@@ -992,13 +796,13 @@ export default function Infrastruktur() {
         </div>
       </div>
       <div className="px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {/* Stats Cards - Enhanced Contrast */}
+        {/* Stats Cards - Responsive Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[
             { label: "Total Desa", value: stats.totalDesa, gradient: "linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(52, 211, 153, 0.9) 100%)", shadow: "0 8px 32px rgba(16, 185, 129, 0.5)" },
-            { label: "Rata-rata Listrik", value: stats.avgListrik, gradient: "linear-gradient(135deg, rgba(20, 184, 166, 0.95) 0%, rgba(45, 212, 191, 0.9) 100%)", shadow: "0 8px 32px rgba(20, 184, 166, 0.5)" },
-            { label: "Rata-rata Sanitasi", value: stats.avgSanitasi, gradient: "linear-gradient(135deg, rgba(34, 211, 238, 0.95) 0%, rgba(125, 211, 252, 0.9) 100%)", shadow: "0 8px 32px rgba(34, 211, 238, 0.5)" },
-            { label: "Rata-rata Aksesibilitas", value: stats.avgAksesibilitas, gradient: "linear-gradient(135deg, rgba(6, 182, 212, 0.95) 0%, rgba(34, 211, 238, 0.9) 100%)", shadow: "0 8px 32px rgba(6, 182, 212, 0.5)" },
+            { label: "Rata-rata Skor Fasilitas", value: stats.avgFasilitas, gradient: "linear-gradient(135deg, rgba(20, 184, 166, 0.95) 0%, rgba(45, 212, 191, 0.9) 100%)", shadow: "0 8px 32px rgba(20, 184, 166, 0.5)" },
+            { label: "Rata-rata Skor Tenaga", value: stats.avgTenaga, gradient: "linear-gradient(135deg, rgba(34, 211, 238, 0.95) 0%, rgba(125, 211, 252, 0.9) 100%)", shadow: "0 8px 32px rgba(34, 211, 238, 0.5)" },
+            { label: "Rata-rata Skor Kesehatan", value: stats.avgKesehatan, gradient: "linear-gradient(135deg, rgba(6, 182, 212, 0.95) 0%, rgba(34, 211, 238, 0.9) 100%)", shadow: "0 8px 32px rgba(6, 182, 212, 0.5)" },
           ].map((stat, idx) => (
             <div 
               key={idx} 
@@ -1018,8 +822,8 @@ export default function Infrastruktur() {
             </div>
           ))}
         </div>
-        {/* Map Section - Enhanced */}
-        <div
+        {/* Map Section */}
+        <div 
           className="rounded-xl shadow-xl overflow-hidden transition-transform hover:scale-[1.01]"
           style={{
             background: "rgba(10, 31, 26, 0.95)",
@@ -1027,7 +831,7 @@ export default function Infrastruktur() {
             boxShadow: "0 0 40px rgba(16, 185, 129, 0.4), inset 0 0 30px rgba(34, 211, 238, 0.1)",
           }}
         >
-          <div
+          <div 
             className="px-4 py-3"
             style={{
               background: "linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(34, 211, 238, 0.2))",
@@ -1039,11 +843,12 @@ export default function Infrastruktur() {
               color: "#ffffff",
               textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.7)"
             }}>
-              Sebaran Desa ({mapMarkers.length} lokasi)
+              Sebaran Kesehatan Desa
+              <span className="ml-2 text-sm font-normal" style={{ color: "#a8dcc8" }}> ({mapMarkers.length} lokasi)</span>
             </h2>
           </div>
           <div className="h-56 sm:h-80 md:h-96">
-            <MapComponent
+            <MapComponent 
               markers={mapMarkers}
               renderTooltip={(marker) => (
                 <div
@@ -1057,12 +862,14 @@ export default function Infrastruktur() {
                     lineHeight: '1.5'
                   }}
                 >
+                  {/* Nama Utama */}
                   <div className="font-black text-lg tracking-tight" style={{
                     color: "#ffffff",
                     textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.8)"
                   }}>
                     {marker.name}
                   </div>
+                  {/* Informasi Lokasi */}
                   <div className="space-y-1 text-xs font-semibold" style={{
                     color: "#ffffff",
                     textShadow: "0 0 8px rgba(255, 255, 255, 0.6), 0 1px 3px rgba(0, 0, 0, 0.7)"
@@ -1080,6 +887,7 @@ export default function Infrastruktur() {
                       </div>
                     )}
                   </div>
+                  {/* Badge Label (seperti contoh visual) */}
                   {marker.label && (
                     <div
                       className="mt-2 px-3 py-1.5 rounded-lg font-black text-sm whitespace-nowrap"
@@ -1094,44 +902,27 @@ export default function Infrastruktur() {
                       {marker.label}
                     </div>
                   )}
-                  {(marker.skor_transportasi !== undefined || marker.skor_aksesibilitas !== undefined || marker.skor_air !== undefined || marker.skor_sanitasi !== undefined) && (
+                  {/* Skor Tambahan */}
+                  {(marker.skor_gizi !== undefined || marker.skor_kesejahteraan !== undefined) && (
                     <div className="mt-2 pt-2 space-y-1" style={{
                       borderTop: "1px solid rgba(34, 211, 238, 0.4)"
                     }}>
-                      {marker.skor_transportasi !== undefined && (
+                      {marker.skor_gizi !== undefined && (
                         <div className="flex justify-between text-sm font-bold">
-                          <span style={{ color: "#ffffff", textShadow: "0 0 8px rgba(255, 255, 255, 0.5)" }}>Transportasi:</span>
+                          <span style={{ color: "#ffffff", textShadow: "0 0 8px rgba(255, 255, 255, 0.5)" }}>Gizi:</span>
                           <span style={{ 
                             color: "#22d3ee",
                             textShadow: "0 0 12px rgba(34, 211, 238, 0.9)"
-                          }}>{Number(marker.skor_transportasi).toFixed(1)}</span>
+                          }}>{Number(marker.skor_gizi).toFixed(1)}</span>
                         </div>
                       )}
-                      {marker.skor_aksesibilitas !== undefined && (
+                      {marker.skor_kesejahteraan !== undefined && (
                         <div className="flex justify-between text-sm font-bold">
-                          <span style={{ color: "#ffffff", textShadow: "0 0 8px rgba(255, 255, 255, 0.5)" }}>Aksesibilitas:</span>
+                          <span style={{ color: "#ffffff", textShadow: "0 0 8px rgba(255, 255, 255, 0.5)" }}>Kesejahteraan:</span>
                           <span style={{ 
                             color: "#22d3ee",
                             textShadow: "0 0 12px rgba(34, 211, 238, 0.9)"
-                          }}>{Number(marker.skor_aksesibilitas).toFixed(1)}</span>
-                        </div>
-                      )}
-                      {marker.skor_air !== undefined && (
-                        <div className="flex justify-between text-sm font-bold">
-                          <span style={{ color: "#ffffff", textShadow: "0 0 8px rgba(255, 255, 255, 0.5)" }}>Air:</span>
-                          <span style={{ 
-                            color: "#22d3ee",
-                            textShadow: "0 0 12px rgba(34, 211, 238, 0.9)"
-                          }}>{Number(marker.skor_air).toFixed(1)}</span>
-                        </div>
-                      )}
-                      {marker.skor_sanitasi !== undefined && (
-                        <div className="flex justify-between text-sm font-bold">
-                          <span style={{ color: "#ffffff", textShadow: "0 0 8px rgba(255, 255, 255, 0.5)" }}>Sanitasi:</span>
-                          <span style={{ 
-                            color: "#22d3ee",
-                            textShadow: "0 0 12px rgba(34, 211, 238, 0.9)"
-                          }}>{Number(marker.skor_sanitasi).toFixed(1)}</span>
+                          }}>{Number(marker.skor_kesejahteraan).toFixed(1)}</span>
                         </div>
                       )}
                     </div>
@@ -1141,7 +932,7 @@ export default function Infrastruktur() {
             />
           </div>
         </div>
-        {/* Charts Section - Enhanced Contrast */}
+        {/* Charts Section - Mobile Optimized */}
         <div className="space-y-4 sm:space-y-6">
           {/* Row 1 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -1166,7 +957,7 @@ export default function Infrastruktur() {
                   color: "#ffffff",
                   textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.7)"
                 }}>
-                  Distribusi Kluster Infrastruktur
+                  Distribusi Kluster Kesehatan
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
@@ -1208,7 +999,7 @@ export default function Infrastruktur() {
                 </ResponsiveContainer>
               </div>
             </div>
-            {/* Chart 2 - Skor Infrastruktur dengan Filter */}
+            {/* Chart 2 - Skor Fasilitas */}
             <div 
               className="rounded-xl shadow-xl overflow-hidden transition-transform hover:scale-[1.01]"
               style={{
@@ -1225,32 +1016,12 @@ export default function Infrastruktur() {
                   boxShadow: "0 4px 15px rgba(34, 211, 238, 0.3)",
                 }}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <h2 className="text-sm sm:text-base font-black" style={{ 
-                    color: "#ffffff",
-                    textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.7)"
-                  }}>
-                    Rata-rata Skor per {chartData.label}
-                  </h2>
-                  <select
-                    value={selectedInfra}
-                    onChange={(e) => setSelectedInfra(e.target.value)}
-                    className="px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 w-full sm:w-auto"
-                    style={{
-                      background: "rgba(16, 185, 129, 0.15)",
-                      border: "2px solid rgba(34, 211, 238, 0.5)",
-                      color: "#ffffff",
-                      boxShadow: "0 0 15px rgba(34, 211, 238, 0.3), inset 0 0 10px rgba(10, 31, 26, 0.8)",
-                    }}
-                  >
-                    <option value="skor_listrik" style={{ background: "#0a1f1a", color: "#ffffff" }}>Listrik</option>
-                    <option value="skor_sanitasi" style={{ background: "#0a1f1a", color: "#ffffff" }}>Sanitasi</option>
-                    <option value="skor_air" style={{ background: "#0a1f1a", color: "#ffffff" }}>Air</option>
-                    <option value="skor_transportasi" style={{ background: "#0a1f1a", color: "#ffffff" }}>Transportasi</option>
-                    <option value="skor_digital" style={{ background: "#0a1f1a", color: "#ffffff" }}>Digital</option>
-                    <option value="skor_aksesibilitas" style={{ background: "#0a1f1a", color: "#ffffff" }}>Aksesibilitas</option>
-                  </select>
-                </div>
+                <h2 className="text-sm sm:text-base font-black" style={{ 
+                  color: "#ffffff",
+                  textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.7)"
+                }}>
+                  Rata-rata Skor Fasilitas per {chartData.label}
+                </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
@@ -1258,7 +1029,68 @@ export default function Infrastruktur() {
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.3)" />
                     <XAxis 
                       dataKey="name" 
-                      stroke="#ffffff"
+                      stroke="#ffffff" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80} 
+                      fontSize={10}
+                      interval={0}
+                      style={{ fontWeight: 'bold' }}
+                    />
+                    <YAxis stroke="#ffffff" fontSize={10} style={{ fontWeight: 'bold' }} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        background: 'rgba(10, 31, 26, 0.98)',
+                        border: '2px solid rgba(34, 211, 238, 0.6)',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        color: '#ffffff',
+                        fontWeight: 'bold',
+                        boxShadow: '0 0 30px rgba(34, 211, 238, 0.5)',
+                      }} 
+                      labelStyle={{ color: '#ffffff', fontWeight: 'bold' }}
+                      itemStyle={{ color: '#22d3ee', fontWeight: 'bold' }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '12px', color: '#ffffff', fontWeight: 'bold' }} />
+                    <Bar dataKey="fasilitas" fill="#10b981" name="Skor Fasilitas" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+          {/* Row 2 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            {/* Chart 3 - Skor Tenaga */}
+            <div 
+              className="rounded-xl shadow-xl overflow-hidden transition-transform hover:scale-[1.01]"
+              style={{
+                background: "rgba(10, 31, 26, 0.95)",
+                border: "2px solid rgba(34, 211, 238, 0.5)",
+                boxShadow: "0 0 40px rgba(16, 185, 129, 0.4), inset 0 0 30px rgba(34, 211, 238, 0.1)",
+              }}
+            >
+              <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "2px solid rgba(34, 211, 238, 0.5)",
+                  background: "linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(34, 211, 238, 0.2))",
+                  boxShadow: "0 4px 15px rgba(34, 211, 238, 0.3)",
+                }}
+              >
+                <h2 className="text-sm sm:text-base font-black" style={{ 
+                  color: "#ffffff",
+                  textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.7)"
+                }}>
+                  Rata-rata Skor Tenaga Kesehatan per {chartData.label}
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={chartData.data} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.3)" />
+                    <XAxis 
+                      dataKey="name" 
+                      stroke="#ffffff" 
                       angle={-45} 
                       textAnchor="end" 
                       height={80} 
@@ -1281,15 +1113,19 @@ export default function Infrastruktur() {
                       itemStyle={{ color: '#22d3ee', fontWeight: 'bold' }}
                     />
                     <Legend wrapperStyle={{ fontSize: '12px', color: '#ffffff', fontWeight: 'bold' }} />
-                    <Bar dataKey="value" fill="#10b981" radius={[6, 6, 0, 0]} />
-                  </BarChart>
+                    <Line 
+                      type="monotone" 
+                      dataKey="tenaga" 
+                      stroke="#10b981" 
+                      strokeWidth={4} 
+                      name="Skor Tenaga"
+                      dot={{ r: 4, fill: "#22d3ee", strokeWidth: 2, stroke: "#ffffff" }} 
+                    />
+                  </LineChart>
                 </ResponsiveContainer>
               </div>
             </div>
-          </div>
-          {/* Row 2 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            {/* Chart 3 - Akses Air */}
+            {/* Chart 4 - Komponen Kesehatan */}
             <div 
               className="rounded-xl shadow-xl overflow-hidden transition-transform hover:scale-[1.01]"
               style={{
@@ -1310,17 +1146,16 @@ export default function Infrastruktur() {
                   color: "#ffffff",
                   textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.7)"
                 }}>
-                  Akses Air Bersih
+                  Rata-rata Skor Komponen Kesehatan
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={aksesAirChartData} margin={{ top: 5, right: 10, left: -10, bottom: 20 }}>
+                  <BarChart data={skorComponentChartData} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.3)" />
                     <XAxis dataKey="name" stroke="#ffffff" fontSize={12} style={{ fontWeight: 'bold' }} />
                     <YAxis stroke="#ffffff" fontSize={12} style={{ fontWeight: 'bold' }} />
                     <Tooltip 
-                      formatter={(value) => [`${Number(value).toFixed(1)}%`, "Persentase"]}
                       contentStyle={{ 
                         background: 'rgba(10, 31, 26, 0.98)',
                         border: '2px solid rgba(34, 211, 238, 0.6)',
@@ -1334,78 +1169,15 @@ export default function Infrastruktur() {
                       itemStyle={{ color: '#22d3ee', fontWeight: 'bold' }}
                     />
                     <Legend wrapperStyle={{ fontSize: '12px', color: '#ffffff', fontWeight: 'bold' }} />
-                    <Bar dataKey="value" fill="#7dd3fc" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="avg" fill="#7dd3fc" name="Skor Rata-rata" radius={[6, 6, 0, 0]} />
                   </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            {/* Chart 4 - Penerangan Jalan */}
-            <div 
-              className="rounded-xl shadow-xl overflow-hidden transition-transform hover:scale-[1.01]"
-              style={{
-                background: "rgba(10, 31, 26, 0.95)",
-                border: "2px solid rgba(34, 211, 238, 0.5)",
-                boxShadow: "0 0 40px rgba(16, 185, 129, 0.4), inset 0 0 30px rgba(34, 211, 238, 0.1)",
-              }}
-            >
-              <div 
-                className="px-4 py-3"
-                style={{
-                  borderBottom: "2px solid rgba(34, 211, 238, 0.5)",
-                  background: "linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(34, 211, 238, 0.2))",
-                  boxShadow: "0 4px 15px rgba(34, 211, 238, 0.3)",
-                }}
-              >
-                <h2 className="text-sm sm:text-base font-black" style={{ 
-                  color: "#ffffff",
-                  textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.7)"
-                }}>
-                  Penerangan Jalan
-                </h2>
-              </div>
-              <div className="p-3 sm:p-4">
-                <ResponsiveContainer width="100%" height={250}>
-                  <PieChart margin={{bottom:10}}>
-                    <Pie
-                      data={peneranganJalanChartData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={renderCustomLabel}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {peneranganJalanChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ 
-                        background: 'rgba(10, 31, 26, 0.98)',
-                        border: '2px solid rgba(34, 211, 238, 0.6)',
-                        borderRadius: '12px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        boxShadow: '0 0 30px rgba(34, 211, 238, 0.5)',
-                      }} 
-                      labelStyle={{
-                        color: "#ffffff",
-                        fontWeight: "bold",
-                      }}
-                      itemStyle={{
-                        color: "#22d3ee",
-                        fontWeight: "bold",
-                      }}
-                    />
-                  </PieChart>
                 </ResponsiveContainer>
               </div>
             </div>
           </div>
           {/* Row 3 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            {/* Chart 5 - Sanitasi Layak */}
+            {/* Chart 5 - Fasilitas per 1000 */}
             <div 
               className="rounded-xl shadow-xl overflow-hidden transition-transform hover:scale-[1.01]"
               style={{
@@ -1426,75 +1198,12 @@ export default function Infrastruktur() {
                   color: "#ffffff",
                   textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.7)"
                 }}>
-                  Sanitasi Layak
+                  Fasilitas Kesehatan per 1000 Penduduk
                 </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <ResponsiveContainer width="100%" height={250}>
-                  <PieChart margin={{bottom:10}}>
-                    <Pie
-                      data={sanitasiLayakChartData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={renderCustomLabel}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {sanitasiLayakChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ 
-                        background: 'rgba(10, 31, 26, 0.98)',
-                        border: '2px solid rgba(34, 211, 238, 0.6)',
-                        borderRadius: '12px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        boxShadow: '0 0 30px rgba(34, 211, 238, 0.5)',
-                      }} 
-                      labelStyle={{
-                        color: "#ffffff",
-                        fontWeight: "bold",
-                      }}
-                      itemStyle={{
-                        color: "#22d3ee",
-                        fontWeight: "bold",
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            {/* Chart 6 - Jalan & Irigasi */}
-            <div 
-              className="rounded-xl shadow-xl overflow-hidden transition-transform hover:scale-[1.01]"
-              style={{
-                background: "rgba(10, 31, 26, 0.95)",
-                border: "2px solid rgba(34, 211, 238, 0.5)",
-                boxShadow: "0 0 40px rgba(16, 185, 129, 0.4), inset 0 0 30px rgba(34, 211, 238, 0.1)",
-              }}
-            >
-              <div 
-                className="px-4 py-3"
-                style={{
-                  borderBottom: "2px solid rgba(34, 211, 238, 0.5)",
-                  background: "linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(34, 211, 238, 0.2))",
-                  boxShadow: "0 4px 15px rgba(34, 211, 238, 0.3)",
-                }}
-              >
-                <h2 className="text-sm sm:text-base font-black" style={{ 
-                  color: "#ffffff",
-                  textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.7)"
-                }}>
-                  Infrastruktur Jalan & Irigasi
-                </h2>
-              </div>
-              <div className="p-3 sm:p-4">
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={jalanIrigasiChartData} margin={{ top: 5, right: 10, left: -10, bottom: 20 }}>
+                  <BarChart data={infraChartData} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.3)" />
                     <XAxis dataKey="name" stroke="#ffffff" fontSize={12} style={{ fontWeight: 'bold' }} />
                     <YAxis stroke="#ffffff" fontSize={12} style={{ fontWeight: 'bold' }} />
@@ -1512,7 +1221,56 @@ export default function Infrastruktur() {
                       itemStyle={{ color: '#22d3ee', fontWeight: 'bold' }}
                     />
                     <Legend wrapperStyle={{ fontSize: '12px', color: '#ffffff', fontWeight: 'bold' }} />
-                    <Bar dataKey="avg" fill="#10b981" name="Rata-rata" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="avg" fill="#10b981" name="Per 1000 Penduduk" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            {/* Chart 6 - Tenaga per 1000 */}
+            <div 
+              className="rounded-xl shadow-xl overflow-hidden transition-transform hover:scale-[1.01]"
+              style={{
+                background: "rgba(10, 31, 26, 0.95)",
+                border: "2px solid rgba(34, 211, 238, 0.5)",
+                boxShadow: "0 0 40px rgba(16, 185, 129, 0.4), inset 0 0 30px rgba(34, 211, 238, 0.1)",
+              }}
+            >
+              <div 
+                className="px-4 py-3"
+                style={{
+                  borderBottom: "2px solid rgba(34, 211, 238, 0.5)",
+                  background: "linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(34, 211, 238, 0.2))",
+                  boxShadow: "0 4px 15px rgba(34, 211, 238, 0.3)",
+                }}
+              >
+                <h2 className="text-sm sm:text-base font-black" style={{ 
+                  color: "#ffffff",
+                  textShadow: "0 0 15px rgba(34, 211, 238, 0.8), 0 2px 6px rgba(0, 0, 0, 0.7)"
+                }}>
+                  Tenaga Kesehatan per 1000 Penduduk
+                </h2>
+              </div>
+              <div className="p-3 sm:p-4">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={workforceChartData} margin={{ top: 5, right: 10, left: -10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 211, 238, 0.3)" />
+                    <XAxis dataKey="name" stroke="#ffffff" fontSize={12} style={{ fontWeight: 'bold' }} />
+                    <YAxis stroke="#ffffff" fontSize={12} style={{ fontWeight: 'bold' }} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        background: 'rgba(10, 31, 26, 0.98)',
+                        border: '2px solid rgba(34, 211, 238, 0.6)',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        color: '#ffffff',
+                        fontWeight: 'bold',
+                        boxShadow: '0 0 30px rgba(34, 211, 238, 0.5)',
+                      }} 
+                      labelStyle={{ color: '#ffffff', fontWeight: 'bold' }}
+                      itemStyle={{ color: '#22d3ee', fontWeight: 'bold' }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '12px', color: '#ffffff', fontWeight: 'bold' }} />
+                    <Bar dataKey="avg" fill="#10b981" name="Per 1000 Penduduk" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
