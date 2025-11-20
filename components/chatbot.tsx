@@ -205,6 +205,28 @@ export default function Chatbot() {
         // Untuk kesehatan, kamu bisa skip atau ganti dengan indikator lain
       }
 
+      if (isKesehatan && visibleDataSummary.cluster_stats) {
+        const cs = visibleDataSummary.cluster_stats;
+
+        if (cs.miskin_ekstrem) {
+          contextStr += `- Analisis Kluster 'Desa Miskin Ekstrem':\n`;
+          contextStr += `  • Jumlah Desa: ${cs.miskin_ekstrem.count}\n`;
+          contextStr += `  • Rata-rata Skor Fasilitas: ${cs.miskin_ekstrem.rata_rata_skor.fasilitas}\n`;
+          contextStr += `  • Rata-rata Skor Tenaga Kesehatan: ${cs.miskin_ekstrem.rata_rata_skor.tenaga_kesehatan}\n`;
+          contextStr += `  • Rata-rata Dokter per 1000 Penduduk: ${cs.miskin_ekstrem.infrastruktur_pendukung.dokter_per_1000}\n`;
+          contextStr += `  • Rata-rata Bidan per 1000 Penduduk: ${cs.miskin_ekstrem.infrastruktur_pendukung.bidan_per_1000}\n`;
+        }
+
+        if (cs.subsisten) {
+          contextStr += `- Analisis Kluster 'Desa Subsisten Pertanian':\n`;
+          contextStr += `  • Jumlah Desa: ${cs.subsisten.count}\n`;
+          contextStr += `  • Rata-rata Skor Fasilitas: ${cs.subsisten.rata_rata_skor.fasilitas}\n`;
+          contextStr += `  • Rata-rata Skor Tenaga Kesehatan: ${cs.subsisten.rata_rata_skor.tenaga_kesehatan}\n`;
+        }
+
+        // Tambahkan kondisi serupa untuk kluster lain jika diperlukan
+      }
+
       // === DESA TERBAIK & TERBURUK ===
       if (isInfrastruktur) {
         if (visibleDataSummary.desa_dengan_infrastruktur_terburuk) {

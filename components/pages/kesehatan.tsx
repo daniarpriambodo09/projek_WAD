@@ -1,6 +1,6 @@
 // siDesa/components/pages/kesehatan.tsx
 "use client"
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import {
   BarChart,
   Bar,
@@ -261,6 +261,45 @@ export default function KesehatanPage() {
     return result;
   }, [data, selectedKab, selectedKec]);
 
+  // --- Fungsi Pembantu: Hitung Statistik untuk Satu Kluster ---
+  const getStatsForCluster = useCallback((clusterLabel: string) => {
+    // Filter desa berdasarkan cluster label
+    const filteredDesa = kecamatanData.filter(d => d.label === clusterLabel);
+    
+    if (filteredDesa.length === 0) {
+      return null;
+    }
+
+    // Hitung rata-rata skor untuk desa dalam kluster ini
+    const avg = (key: keyof HealthData) => {
+      const sum = filteredDesa.reduce((total, d) => total + (d[key] as number), 0);
+      return Number((sum / filteredDesa.length).toFixed(1));
+    };
+
+    return {
+      count: filteredDesa.length,
+      rata_rata_skor: {
+        fasilitas: avg("skor_fasilitas"),
+        tenaga_kesehatan: avg("skor_tenaga_kesehatan"),
+        gizi: avg("skor_gizi"),
+        klb: avg("skor_klb"),
+        program_prioritas: avg("skor_program_prioritas"),
+        kesejahteraan: avg("skor_kesejahteraan"),
+        kesehatan_total: avg("skor_kesehatan_total"),
+      },
+      infrastruktur_pendukung: {
+        ada_puskesmas: filteredDesa.filter(d => d.ada_puskesmas === 1).length,
+        ada_posyandu: filteredDesa.filter(d => d.ada_posyandu === 1).length,
+        dokter_per_1000: Number(
+          (filteredDesa.reduce((sum, d) => sum + d.dokter_per_1000, 0) / filteredDesa.length).toFixed(1)
+        ),
+        bidan_per_1000: Number(
+          (filteredDesa.reduce((sum, d) => sum + d.bidan_per_1000, 0) / filteredDesa.length).toFixed(1)
+        ),
+      }
+    };
+  }, [kecamatanData]);
+
   const visibleDataSummary = useMemo(() => {
     if (!data.length || !kecamatanData.length) return null;
 
@@ -401,6 +440,14 @@ export default function KesehatanPage() {
       top5_terbaik: top5Terbaik,
       top5_terburuk: top5Terburuk,
       globalInsights: null,
+
+      cluster_stats: {
+        miskin_ekstrem: getStatsForCluster("Desa Miskin Ekstrem"),
+        subsisten: getStatsForCluster("Desa Subsisten Pertanian"),
+        tenaga_kesehatan: getStatsForCluster("Desa Tenaga Kesehatan"),
+        mandiri: getStatsForCluster("Desa Mandiri Program"),
+        // Tambahkan jika ada label lain
+      }
     };
     }, [kecamatanData, selectedKab, selectedKec, data, kabupatenTerburuk, kabupatenTerbaik, top5Kesehatan]);
   useEffect(() => {
